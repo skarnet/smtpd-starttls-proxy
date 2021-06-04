@@ -1,0 +1,97 @@
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <meta http-equiv="Content-Language" content="en" />
+    <title>smtpd-starttls-proxy - A proxy implementing STARTTLS in front of SMTP servers that do not</title>
+    <meta name="Description" content="smtpd-starttls-proxy - A proxy implementing STARTTLS in front of SMTP servers that do not" />
+    <meta name="Keywords" content="smtpd starttls proxy qmail-smtpd ucspi-tls laurent bercot ska skarnet" />
+    <!-- <link rel="stylesheet" type="text/css" href="//skarnet.org/default.css" /> -->
+  </head>
+<body>
+
+<p>
+<a href="//skarnet.org/software/">Software</a><br />
+<a href="//skarnet.org/">skarnet.org</a>
+</p>
+
+<h1> smtpd-starttls-proxy </h1>
+
+<h2> What is it&nbsp;? </h2>
+
+<p>
+  smtpd-starttls-proxy is a program implementing STARTTLS for mail servers.
+</p>
+
+<hr />
+
+<h2> Installation </h2>
+
+<h3> Requirements </h3>
+
+<ul>
+ <li> A POSIX-compliant system with a standard C development environment </li>
+ <li> GNU make, version 3.81 or later </li>
+ <li> <a href="//skarnet.org/software/skalibs/">skalibs</a> version
+2.10.0.3 or later. It's a build-time requirement. It's also a run-time
+requirement if you link against the shared version of the skalibs
+library. </li>
+ <li> <a href="//skarnet.org/software/s6/">s6</a> version
+2.10.0.3 or later. It's a build-time and run-time requirement. </li>
+ <li> <a href="//skarnet.org/software/s6-networking/">s6-networking</a> version
+2.4.2.0 or later. It's a build-time and run-time requirement. </li>
+</ul>
+
+<h3> Licensing </h3>
+
+<p>
+ smtpd-starttls-proxy is free software. It is available under the
+<a href="https://opensource.org/licenses/ISC">ISC license</a>.
+</p>
+
+<h3> Download </h3>
+
+<ul>
+ <li> The current released version of mdevd is
+<a href="smtpd-starttls-proxy-0.0.1.0.tar.gz">0.0.1.0</a>. </li>
+ <li> Alternatively, you can checkout a copy of the
+<a href="//git.skarnet.org/cgi-bin/cgit.cgi/smtpd-starttls-proxy/">smtpd-starttls-proxy
+git repository</a>:
+<pre> git clone git://git.skarnet.org/smtpd-starttls-proxy </pre> </li>
+ <li> There's also a
+<a href="https://github.com/skarnet/smtpd-starttls-proxy">GitHub mirror</a>
+of the smtpd-starttls-proxy git repository. </li>
+</ul>
+
+<h3> Compilation </h3>
+
+<ul>
+ <li> See the enclosed INSTALL file for installation details. </li>
+</ul>
+
+<h3> Upgrade notes </h3>
+
+<ul>
+ <li> <a href="upgrade.html">This page</a> lists the differences to be aware of between
+the previous versions of smtpd-starttls-proxy and the current one. </li>
+</ul>
+
+<hr />
+
+<h2> Reference </h2>
+
+<h3> Commands </h3>
+
+<ul>
+<li><a href="smtpd-starttls-proxy-io.html">The <tt>smtpd-starttls-proxy-io</tt> program</a></li>
+</ul>
+
+<h2> Related resources </h2>
+
+<ul>
+ <li> <tt>smtpd-starttls-proxy</tt> is discussed on the
+<a href="//skarnet.org/lists/#skaware">skaware</a> mailing-list. </li>
+</ul>
+
+</body>
+</html>
