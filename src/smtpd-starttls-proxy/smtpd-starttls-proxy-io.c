@@ -9,7 +9,6 @@
 #include <skalibs/gccattributes.h>
 #include <skalibs/posixplz.h>
 #include <skalibs/types.h>
-#include <skalibs/bytestr.h>
 #include <skalibs/sgetopt.h>
 #include <skalibs/allreadwrite.h>
 #include <skalibs/buffer.h>
@@ -98,7 +97,7 @@ static int answer_forward (char const *s)
 static int answer_ehlo (char const *s)
 {
   static int needed = 1 ;
-  if (needed && s[0] == '2' && case_starts(s+4, "starttls"))
+  if (needed && s[0] == '2' && !strncasecmp(s+4, "starttls", 8))
   {
     needed = 0 ;
     strerr_warni1x("server seems to support STARTTLS natively") ;
@@ -161,7 +160,7 @@ static int do_forward (char const *s)
 static int do_badorder (char const *s)
 {
   (void)s ;
-  answer_enqueue("503 MAIL has to come first\r\n") ;
+  answer_enqueue("503 MAIL first. Are you like this with girls too?\r\n") ;
   return 0 ;
 }
 
@@ -196,7 +195,7 @@ static int do_notls (char const *s)
 static int do_starttls (char const *s)
 {
   if (buffer_len(&io[0].in))
-    answer_enqueue("503 STARTTLS must be the last command in a group\r\n") ;
+    answer_enqueue("503 Stop yammering after saying STARTTLS\r\n") ;
   else
   {
     command_enqueue("RSET\r\n", &trigger_starttls) ;
@@ -233,7 +232,7 @@ static int process_client_line (char const *s)
       break ;
   }
   if (cmd->name) return (*cmd->f)(s) ;
-  answer_enqueue("500 SMTP mother!@#$er, do you speak it\r\n") ;
+  answer_enqueue("500 SMTP motherfucker, do you speak it?\r\n") ;
   return 0 ;
 }
 

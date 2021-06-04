@@ -38,8 +38,103 @@ server, and interfaces with it.
 </pre>
 
 <ul>
- <li> <tt>smtpd-starttls-proxy-io</tt> spawns <em>smtpd...</em> as
-a child process. It interposes itself between 
+ <li> <tt>smtpd-starttls-proxy-io</tt> forks and the parent execs into <em>smtpd...</em>.
+<tt>smtpd-starttls-proxy-io</tt> sticks around as a child process. </li>
+ <li> <tt>smtpd-starttls-proxy-io</tt> interposes itself between the client connection
+(stdin/stdout) and <em>smtpd</em>; the latter still talks to its stdin/stdout but those
+are only connected to <tt>smtpd-starttls-proxy-io</tt>. </li>
+ <li> <tt>smtpd-starttls-proxy-io</tt> acts as an SMTP server to the client, and as
+an SMTP client to the server. It advertises STARTTLS capability to the client in addition
+to <em>smtpd</em>'s capabilities. </li>
+ <li> If it receives a <tt>STARTTLS</tt> command, it triggers the UCSPI-TLS process to
+perform a TLS handshake, then execs into
+<a href="//skarnet.org/software/s6/s6-ioconnect.html">s6-ioconnect</a>, transmitting
+data between the TLS layer and <em>smtpd</em> until the end of the connection. </li>
+ <li> If, instead, it receives a <tt>HELO</tt> command, which indicates lack of STARTTLS
+support in the client, or a <tt>MAIL</tt> command, which indicates a desire to send mail
+without requiring TLS, it deactivates the UCSPI-TLS process, then execs into
+<a href="//skarnet.org/software/s6/s6-ioconnect.html">s6-ioconnect</a>, this time
+transmitting plaintext data between the network and <em>smtpd</em> until the end of the
+connection. </li>
+</ul>
+
+<h2> Environment variables </h2>
+
+<p>
+ <tt>smtpd-starttls-proxy-io</tt> expects to be run under a UCSPI-TLS server such as
+<a href="//skarnet.org/software/s6-networking/s6-ucspitlsd.html">s6-ucspitlsd</a> or
+<a href="//www.fehcom.de/ipnet/ucspi-ssl/sslserver.html">sslserver -n</a>. As a
+consequence, it expects its environment to contain the following variables:
+</p>
+
+<ul>
+ <li> SSLCTLFD: the file descriptor number of the UCSPI-TLS control socket </li>
+ <li> SSLREADFD: the file descriptor number of the pipe used to read data from the TLS tunnel after it has been activated </li>
+ <li> SSLWRITEFD: the file descriptor number of the pipe used to write data to the TLS tunnel after it has been activated. </li>
+</ul>
+
+<p>
+ <tt>smtpd-starttls-proxy-io</tt> will refuse to run if one of these variables
+is nonexistent or contains invalid data.
+</p>
+
+<h2> Usage example </h2>
+
+<p>
+ You can run a STARTTLS-enabled <tt>qmail-smtpd</tt> mail receiver on
+address <em>hostip</em> port <em>port</em> with the following steps:
+</p>
+
+<ul>
+ <li> Install <a href="//skarnet.org/software/s6-networking/index.html">s6-networking</a>
+and make sure to activate TLS support. (bearssl is recommended over libtls.) </li>
+ <li> Define proper environment variables for your TLS connection: at least
+CERTFILE and KEYFILE. The environment you need is documented on the
+<a href="//skarnet.org/software/s6-networking/s6-tlsd-io.html">s6-tlsd-io</a> page. </li>
+ <li> Refine your security with additional environment variables: TLS_UID and TLS_GID to
+avoid running the TLS engine as root, and UID and GID to avoid running the SMTP server (and
+<tt>smtpd-starttls-proxy-io</tt>!) as root. </li>
+ <li> If you wish, also refine the following command line with various options to every tool
+that appears, for fine tuning of connection parameters. </li>
+ <li> The following command line is only <em>one</em> command line, which makes heavy use
+of chainloading. It has been broken down into several lines for readability.
+(Note that you don't need the backslashes if you're writing an
+<a href="//skarnet.org/software/execline/">execline</a> script.) </li>
+</ul>
+
+<pre> s6-tcpserver -- <em>hostip</em> <em>port</em> \
+  s6-tcpserver-access -Dl0 -t5000 -- \
+  s6-ucspitlsd -K30000 -- \
+  s6-applyuidgid -Uz -- \
+  smtpd-starttls-proxy-io \
+  qmail-smtpd </pre>
+
+<ul>
+ <li> <a href="https://skarnet.org/software/s6-networking/s6-tcpserver.html">s6-tcpserver</a>
+will listen on socket TCP:<em>hostip</em>:<em>port</em> and spawn the rest of its
+command line as a child for every client connection. (Think <tt>inetd</tt>-like.) </li>
+ <li> <a href="https://skarnet.org/software/s6-networking/s6-tcpserver-access.html">s6-tcpserver-access</a>
+will fine-tune some TCP parameters of the connection. It can also do ip-based access
+control, and that's its main use, but that's not what we're using it for here. </li>
+ <li> <a href="https://skarnet.org/software/s6-networking/s6-ucspitlsd.html">s6-ucspitlsd</a>
+will create a control channel for opportunistic TLS and wait for a command. </li>
+ <li> <a href="https://skarnet.org/software/s6/s6-applyuidgid.html">s6-applyuidgid</a> will
+drop root privileges. </li>
+ <li> <tt>smtpd-starttls-proxy-io</tt> will exchange data with the client and the server,
+and depending on what the client wants, tell
+<a href="https://skarnet.org/software/s6-networking/s6-ucspitlsd.html">s6-ucspitlsd</a>
+either to drop it entirely or to perform a TLS handshake. </li>
+ <li> <a href="http://qmail.org/man/man8/qmail-smtpd.html">qmail-smtpd</a> is the
+real SMTP server, does nothing else than speak SMTP to its stdin/stdout, does not support
+STARTTLS, and is blissfully unaware of all the plumbing and shenanigans that happen
+above. </li>
+</ul>
+
+<h2> Notes </h2>
+
+<ul>
+ <li> <tt>smtpd-starttls-proxy-io</tt> is significantly less polite than <tt>qmail-smtpd</tt>
+when the client does not follow proper protocol. </li>
 </ul>
 
 </body>
