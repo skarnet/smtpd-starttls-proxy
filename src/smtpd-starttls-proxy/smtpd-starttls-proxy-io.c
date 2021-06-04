@@ -86,28 +86,38 @@ static inline void cbfunc_pop (void)
   alloc_free(node) ;
 }
 
-static inline void transfer_to_client (char const *s)
+static inline void answer_enqueue (char const *s)
 {
   if (!bufalloc_puts(&io[0].out, s)) dienomem() ;
 }
 
 static int answer_forward (char const *s)
 {
-  transfer_to_client(s) ;
+  answer_enqueue(s) ;
   return 1 ;
 }
 
 static int answer_ehlo (char const *s)
 {
-  transfer_to_client(s) ;
-  if (s[0] == '2' && case_starts(s+4, "starttls"))
+  static int needed = 1 ;
+  if (needed && s[0] == '2' && case_starts(s+4, "starttls"))
+  {
+    needed = 0 ;
     strerr_warni1x("server seems to support STARTTLS natively") ;
+  }
+  if (needed && s[3] == ' ') answer_enqueue("250-STARTTLS\r\n") ;
+  answer_enqueue(s) ;
   return s[3] == ' ' ;
 }
 
 static int trigger_starttls (char const *s)
 {
-  if (s[0] != '2') strerr_diefu2x(111, "STARTTLS: RSET failed, server answered: ", s) ;
+  if (s[0] != '2')
+  {
+    answer_enqueue("454 Server failed to reset\r\n") ;
+    wantexec = 0 ;
+  }
+  else answer_enqueue("220 Ready to start TLS\r\n") ;
   return 1 ;
 }
 
@@ -138,11 +148,6 @@ static int command_enqueue (char const *s, cbfunc_ref f)
   if (!bufalloc_puts(&io[1].out, s)) dienomem() ;
   cbfunc_enqueue(f) ;
   return 0 ;
-}
-
-static void answer_enqueue (char const *s)
-{
-  if (!bufalloc_puts(&io[0].out, s)) dienomem() ;
 }
 
 static int do_noop (char const *s)
@@ -181,8 +186,13 @@ static int do_notls (char const *s)
 
 static int do_starttls (char const *s)
 {
-  command_enqueue("RSET\r\n", &trigger_starttls) ;
-  wantexec = 2 ;
+  if (buffer_len(&io[0].in))
+    answer_enqueue("503 STARTTLS must be the last command in a group\r\n") ;
+  else
+  {
+    command_enqueue("RSET\r\n", &trigger_starttls) ;
+    wantexec = 2 ;
+  }
   return 0 ;
 }
 
@@ -372,20 +382,23 @@ int main (int argc, char const *const *argv)
   if (!wantexec) return 0 ;
   if (wantexec >= 2)
   {
+    int got = 0 ;
     if (fd_write(fd_control, "Y", 1) < 0)
       strerr_diefu1sys(111, "send ucspi-tls start command") ;
     fd_shutdown(fd_control, 1) ;
     for (;;)
     {
       ssize_t r = fd_read(fd_control, io[1].buf, BUFFER_INSIZE) ;
-      if (r < 0) strerr_diefu1sys(111, "read handshake environment") ;
+      if (r < 0) strerr_diefu1sys(111, "read handshake data") ;
       if (!r) break ;
+      got = 1 ;
     }
+    if (!got) return 1 ;  /* handshake failed */
     fd_close(fd_control) ;
     if (fd_move2(0, sslfds[0], 1, sslfds[1]) == -1)
       strerr_diefu1sys(111, "move fds") ;
   }
-  if (io[0].indata.len)
+  else if (io[0].indata.len)
   {
     if (!bufalloc_puts(&io[1].out, io[0].indata.s)) dienomem() ;
     io[0].indata.len = 0 ;
