@@ -18,13 +18,28 @@
 
 <h1> The <tt>smtpd-starttls-proxy-io</tt> program </h1>
 
+<p>
+<tt>smtpd-starttls-proxy-io</tt> is a program that runs in front of a UCSPI-compliant
+SMTP server (such as <tt>qmail-smtpd</tt>) and extends it with STARTTLS
+capability.
+</p>
+
+<p>
+ <tt>smtpd-starttls-proxy-io</tt> provides no TLS on its own;
+instead, it expects to be run under a
+<a href="https://web.archive.org/web/20150311223933/http://www.suspectclass.com/sgifford/ucspi-tls/ucspi-tls.txt">UCSPI-TLS</a>
+server, and interfaces with it.
+</p>
+
 <h2> Interface </h2>
 
 <pre>
-     smtpd-starttls-proxy-io <em>server...</em>
+     smtpd-starttls-proxy-io <em>smtpd...</em>
 </pre>
 
 <ul>
+ <li> <tt>smtpd-starttls-proxy-io</tt> spawns <em>smtpd...</em> as
+a child process. It interposes itself between 
 </ul>
 
 </body>
