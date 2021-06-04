@@ -21,10 +21,12 @@
 #include <skalibs/djbunix.h>
 #include <skalibs/iopause.h>
 #include <skalibs/skamisc.h>
+#include <skalibs/exec.h>
+#include <skalibs/unix-timed.h>
 
 #include <s6/config.h>
 
-#define USAGE "smtpd-starttls-proxy-io prog..."
+#define USAGE "smtpd-starttls-proxy-io [ -- ] prog..."
 #define dieusage() strerr_dieusage(100, USAGE)
 #define dienomem() strerr_diefu1sys(111, "alloc")
 
@@ -44,15 +46,15 @@ struct io_s {
 
 static io_t io[2] =
 {
-  [0] = { .in = BUFFER_INIT(&buffer_read, 0, io[0].buf, BUFFER_INSIZE), out = BUFALLOC_INIT(&fd_write, 1), .indata = STRALLOC_ZERO, .buf = "" },
-  [1] = { .in = BUFFER_ZERO, out = BUFALLOC_ZERO, .indata = STRALLOC_ZERO, .buf = "" }
+  [0] = { .in = BUFFER_INIT(&buffer_read, 0, io[0].buf, BUFFER_INSIZE), .out = BUFALLOC_INIT(&fd_write, 1), .indata = STRALLOC_ZERO, .buf = "" },
+  [1] = { .in = BUFFER_ZERO, .out = BUFALLOC_ZERO, .indata = STRALLOC_ZERO, .buf = "" }
 } ;
 
 
  /* Server answer processing */
 
 typedef int cbfunc (char const *) ;
-typedef cbfunc cbfunc_ref ;
+typedef cbfunc *cbfunc_ref ;
 
 typedef struct cbnode_s cbnode, *cbnode_ref ;
 struct cbnode_s
@@ -62,7 +64,7 @@ struct cbnode_s
   cbfunc_ref f ;
 } ;
 
-static cbnode cbsentinel = { .prev = &cbsentinel, .next = &cbsentinel, .f = 0 }
+static cbnode cbsentinel = { .prev = &cbsentinel, .next = &cbsentinel, .f = 0 } ;
 
 static void cbfunc_enqueue (cbfunc_ref f)
 {
@@ -75,20 +77,10 @@ static void cbfunc_enqueue (cbfunc_ref f)
   cbsentinel.prev = node ;
 }
 
-static void cbfunc_wedge (cbfunc_ref f)
-{
-  cbnode *node = alloc(sizeof(cbnode)) ;
-  if (!node) dienomem() ;
-  node->f = f ;
-  node->next = cbsentinel.next ;
-  node->prev = &cbsentinel ;
-  cbsentinel.next->prev = node ;
-  cbsentinel.next = node ;
-}
-
-static void cbfunc_dequeue (void)
+static inline void cbfunc_pop (void)
 {
   cbnode *node = cbsentinel.next ;
+  if (node == &cbsentinel) strerr_dief1x(101, "can't happen: popping an empty queue!") ;
   node->next->prev = node->prev ;
   cbsentinel.next = node->next ;
   alloc_free(node) ;
@@ -115,7 +107,7 @@ static int answer_ehlo (char const *s)
 
 static int trigger_starttls (char const *s)
 {
-  if (s[0] != '2') strerr_diefu3x(111, "STARTTLS: RSET failed, server answered: " , s) ;
+  if (s[0] != '2') strerr_diefu2x(111, "STARTTLS: RSET failed, server answered: ", s) ;
   return 1 ;
 }
 
@@ -126,22 +118,13 @@ static void process_server_line (char const *s)
    || s[2] < '0' || s[2] > '9'
    || (s[3] != ' ' && s[3] != '-'))
     strerr_dief1x(100, "server is not speaking SMTP") ;
-  if ((*cbsentinel.next->f)(s)) cbfunc_dequeue() ;
+  if ((*cbsentinel.next->f)(s)) cbfunc_pop() ;
 }
 
  /* Client command processing */
 
-typedef void cmdfunc (char const *, size_t) ;
-typedef cmdfunc cmdfunc_ref ;
-
-struct cmdmap_s
-{
-  char const *name ;
-  cmdfunc_ref f ;
-} ;
-
-typedef void cmdfunc (char const *, size_t) ;
-typedef cmdfunc cmdfunc_ref ;
+typedef int cmdfunc (char const *) ;
+typedef cmdfunc *cmdfunc_ref ;
 
 typedef struct cmdmap_s cmdmap, *cmdmap_ref ;
 struct cmdmap_s
@@ -181,7 +164,7 @@ static int do_rcpt (char const *s)
   return 0 ;
 }
 
-static void do_ehlo (char const *s)
+static int do_ehlo (char const *s)
 {
   return command_enqueue(s, &answer_ehlo) ;
 }
@@ -253,9 +236,9 @@ int main (int argc, char const *const *argv)
   {
     [0] = { .events = IOPAUSE_READ },
     [1] = { .fd = 0 },
-    [2] = { .fd = 1 }
+    [2] = { .fd = 1 },
     [3] = { .events = IOPAUSE_READ }
-  }
+  } ;
   tain_t deadline ;
   PROG = "smtpd-starttls-proxy-io" ;
   {
@@ -271,6 +254,7 @@ int main (int argc, char const *const *argv)
     }
     argc -= l.ind ; argv += l.ind ;
   }
+  if (!argc) dieusage() ;
 
   {
     unsigned int u ;
