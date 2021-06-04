@@ -3,6 +3,8 @@
 #include <unistd.h>
 #include <errno.h>
 #include <signal.h>
+#include <string.h>
+#include <strings.h>
 #include <stdlib.h>
 
 #include <skalibs/posixplz.h>
@@ -12,6 +14,7 @@
 #include <skalibs/allreadwrite.h>
 #include <skalibs/buffer.h>
 #include <skalibs/alloc.h>
+#include <skalibs/stralloc.h>
 #include <skalibs/bufalloc.h>
 #include <skalibs/error.h>
 #include <skalibs/strerr2.h>
@@ -162,10 +165,10 @@ static int command_forward (char const *s)
   return command_enqueue(s, &answer_forward) ;
 }
 
-static int do_rcpt (char const *s)
+static int do_badorder (char const *s)
 {
   (void)s ;
-  answer_enqueue("503 MAIL first (#5.5.1)\r\n") ;
+  answer_enqueue("503 MAIL has to come first\r\n") ;
   return 0 ;
 }
 
@@ -176,10 +179,23 @@ static int do_ehlo (char const *s)
 
 static int do_notls (char const *s)
 {
+  size_t n = buffer_len(&io[0].in) ;
   if (!bufalloc_puts(&io[1].out, s)) dienomem() ;
   fd_close(fd_control) ;
   fd_close(sslfds[1]) ;
   fd_close(sslfds[0]) ;
+  if (n)
+  {
+    if (!stralloc_readyplus(&io[1].out.x, n)) dienomem() ;
+    buffer_getnofill(&io[0].in, io[1].out.x.s + io[1].out.x.len, n) ;
+    io[1].out.x.len += n ;
+  }
+  n = buffer_len(&io[1].in) ;
+  {
+    if (!stralloc_readyplus(&io[0].out.x, n)) dienomem() ;
+    buffer_getnofill(&io[1].in, io[0].out.x.s + io[0].out.x.len, n) ;
+    io[0].out.x.len += n ;
+  }
   wantexec = 1 ;
   return 1 ;
 }
@@ -198,31 +214,33 @@ static int do_starttls (char const *s)
 
 static cmdmap const commands[] =
 {
-  { .name = "noop", .f = &do_noop },
-  { .name = "help", .f = &command_forward },
-  { .name = "vrfy", .f = &command_forward },
-  { .name = "expn", .f = &command_forward },
-  { .name = "quit", .f = &command_forward },
-  { .name = "rcpt", .f = &do_rcpt },
   { .name = "ehlo", .f = &do_ehlo },
+  { .name = "starttls", .f = &do_starttls },
   { .name = "helo", .f = &do_notls },
   { .name = "mail", .f = &do_notls },
-  { .name = "starttls", .f = &do_starttls },
+  { .name = "rcpt", .f = &do_badorder },
+  { .name = "data", .f = &do_badorder },
+  { .name = "rset", .f = &command_forward },
+  { .name = "vrfy", .f = &command_forward },
+  { .name = "expn", .f = &command_forward },
+  { .name = "help", .f = &command_forward },
+  { .name = "noop", .f = &do_noop },
+  { .name = "quit", .f = &command_forward },
   { .name = 0, .f = 0 }
 } ;
 
 static int process_client_line (char const *s)
 {
   cmdmap const *cmd = commands ;
-  for (cmdmap const *cmd = commands ; cmd->name ; cmd++)
-    if (case_starts(s, cmd->name)) break ;
-  if (cmd->name)
+  for (; cmd->name ; cmd++)
   {
     size_t len = strlen(cmd->name) ;
-    if (s[len] == ' ' || s[len] == '\r' || s[len] == '\n')
-      return (*cmd->f)(s) ;
+    if (!strncasecmp(s, cmd->name, strlen(cmd->name))
+     && (s[len] == ' ' || s[len] == '\r' || s[len] == '\n'))
+      break ;
   }
-  answer_enqueue("502 unimplemented (#5.5.1)\r\n") ;
+  if (cmd->name) return (*cmd->f)(s) ;
+  answer_enqueue("500 SMTP mother!@#$er, do you speak it\r\n") ;
   return 0 ;
 }
 
@@ -246,8 +264,7 @@ int main (int argc, char const *const *argv)
   {
     { .events = IOPAUSE_READ },
     { .fd = 0 },
-    { .fd = 1 },
-    { .events = IOPAUSE_READ }
+    { .fd = 1 }
   } ;
   tain_t deadline ;
   PROG = "smtpd-starttls-proxy-io" ;
@@ -297,8 +314,8 @@ int main (int argc, char const *const *argv)
     int fd[2] = { 0, 1 } ;
     if (!child_spawn2(argv[0], argv, (char const *const *)environ, fd))
       strerr_diefu2sys(111, "spawn ", argv[0]) ;
-    if (ndelay_on(fd[0]) == -1 || ndelay_on(fd[1]) == -1)
-      strerr_diefu1sys(111, "make server fds non-blocking") ;
+    if (ndelay_on(fd[0]) == -1 || ndelay_on(fd[1]) == -1 || uncoe(fd[0]) == -1 || uncoe(fd[1]) == -1)
+      strerr_diefu1sys(111, "set flags on server fds") ;
     buffer_init(&io[1].in, &buffer_read, fd[0], io[1].buf, BUFFER_INSIZE) ;
     bufalloc_init(&io[1].out, &fd_write, fd[1]) ;
     x[3].fd = fd[0] ; x[4].fd = fd[1] ;
@@ -313,8 +330,9 @@ int main (int argc, char const *const *argv)
   {
     int r ;
     if (!bufalloc_len(&io[0].out) && (x[3].fd == -1 || (cbsentinel.next == &cbsentinel && wantexec))) break ;
-    x[1].events = wantexec ? 0 : IOPAUSE_READ ;
+    x[1].events = !wantexec ? IOPAUSE_READ : 0 ;
     x[2].events = bufalloc_len(&io[0].out) ? IOPAUSE_WRITE : 0 ;
+    x[3].events = wantexec != 1 ? IOPAUSE_READ : 0 ;
     x[4].events = bufalloc_len(&io[1].out) ? IOPAUSE_WRITE : 0 ;
     r = iopause_g(x, 5, &deadline) ;
     if (r == -1) strerr_diefu1sys(111, "iopause") ;
@@ -381,6 +399,8 @@ int main (int argc, char const *const *argv)
   }
 
   if (!wantexec) return 0 ;
+  if (bufalloc_len(&io[1].out) && !bufalloc_timed_flush_g(&io[1].out, &deadline))
+    strerr_diefu1sys(111, "write to server") ;
   if (wantexec >= 2)
   {
     int got = 0 ;
@@ -398,12 +418,6 @@ int main (int argc, char const *const *argv)
     fd_close(fd_control) ;
     if (fd_move2(0, sslfds[0], 1, sslfds[1]) == -1)
       strerr_diefu1sys(111, "move fds") ;
-  }
-  else if (io[0].indata.len)
-  {
-    if (!bufalloc_puts(&io[1].out, io[0].indata.s)) dienomem() ;
-    io[0].indata.len = 0 ;
-    if (!bufalloc_timed_flush_g(&io[1].out, &deadline)) strerr_dief1x(99, "timed out") ;
   }
   {
     char fmtr[UINT_FMT] ;
