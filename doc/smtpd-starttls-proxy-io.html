@@ -102,7 +102,7 @@ of chainloading. It has been broken down into several lines for readability.
 <a href="//skarnet.org/software/execline/">execline</a> script.) </li>
 </ul>
 
-<pre> s6-tcpserver -- <em>hostip</em> <em>port</em> \
+<pre>  s6-tcpserver -- <em>hostip</em> <em>port</em> \
   s6-tcpserver-access -Dl0 -t5000 -- \
   s6-ucspitlsd -K30000 -- \
   s6-applyuidgid -Uz -- \
