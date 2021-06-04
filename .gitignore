@@ -5,4 +5,4 @@
 *.so.*
 /config.mak
 /src/include/smtpd-starttls-proxy/config.h
-/smtpd-starttls-proxy
+/smtpd-starttls-proxy-io
