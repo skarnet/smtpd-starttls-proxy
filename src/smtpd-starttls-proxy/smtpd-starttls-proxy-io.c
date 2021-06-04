@@ -46,8 +46,8 @@ struct io_s {
 
 static io_t io[2] =
 {
-  [0] = { .in = BUFFER_INIT(&buffer_read, 0, io[0].buf, BUFFER_INSIZE), .out = BUFALLOC_INIT(&fd_write, 1), .indata = STRALLOC_ZERO, .buf = "" },
-  [1] = { .in = BUFFER_ZERO, .out = BUFALLOC_ZERO, .indata = STRALLOC_ZERO, .buf = "" }
+  { .in = BUFFER_INIT(&buffer_read, 0, io[0].buf, BUFFER_INSIZE), .out = BUFALLOC_INIT(&fd_write, 1), .indata = STRALLOC_ZERO, .buf = "" },
+  { .in = BUFFER_ZERO, .out = BUFALLOC_ZERO, .indata = STRALLOC_ZERO, .buf = "" }
 } ;
 
 
@@ -244,10 +244,10 @@ int main (int argc, char const *const *argv)
 {
   iopause_fd x[5] =
   {
-    [0] = { .events = IOPAUSE_READ },
-    [1] = { .fd = 0 },
-    [2] = { .fd = 1 },
-    [3] = { .events = IOPAUSE_READ }
+    { .events = IOPAUSE_READ },
+    { .fd = 0 },
+    { .fd = 1 },
+    { .events = IOPAUSE_READ }
   } ;
   tain_t deadline ;
   PROG = "smtpd-starttls-proxy-io" ;
@@ -294,9 +294,10 @@ int main (int argc, char const *const *argv)
     if (selfpipe_trapset(&set) < 0) strerr_diefu1sys(111, "trap signals") ;
   }
   {
-    int fd[2] ;
+    int fd[2] = { 0, 1 } ;
     if (!child_spawn2(argv[0], argv, (char const *const *)environ, fd))
-    if (ndelay_on(fd[0]) < 0 || ndelay_on(fd[1]) < 0)
+      strerr_diefu2sys(111, "spawn ", argv[0]) ;
+    if (ndelay_on(fd[0]) == -1 || ndelay_on(fd[1]) == -1)
       strerr_diefu1sys(111, "make server fds non-blocking") ;
     buffer_init(&io[1].in, &buffer_read, fd[0], io[1].buf, BUFFER_INSIZE) ;
     bufalloc_init(&io[1].out, &fd_write, fd[1]) ;
