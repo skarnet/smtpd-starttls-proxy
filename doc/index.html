@@ -38,8 +38,11 @@ requirement if you link against the shared version of the skalibs
 library. </li>
  <li> <a href="//skarnet.org/software/s6/">s6</a> version
 2.10.0.3 or later. It's a build-time and run-time requirement. </li>
- <li> <a href="//skarnet.org/software/s6-networking/">s6-networking</a> version
-2.4.1.1 or later. It's a build-time and run-time requirement. </li>
+ <li> Recommended at run-time: <a href="//skarnet.org/software/s6-networking/">s6-networking</a> version
+2.4.1.1 or later. It's not a requirement, but you won't be able
+to do much with smtpd-starttls-proxy if you don't have a suitable
+UCSPI-TLS server tool, and <a href="//skarnet.org/software/s6-networking/">s6-networking</a>
+provides a simple one. </li>
 </ul>
 
 <h3> Licensing </h3>
