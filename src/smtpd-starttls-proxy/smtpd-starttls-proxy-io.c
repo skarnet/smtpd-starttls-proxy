@@ -12,9 +12,6 @@
 #include <skalibs/sgetopt.h>
 #include <skalibs/allreadwrite.h>
 #include <skalibs/buffer.h>
-#include <skalibs/alloc.h>
-#include <skalibs/stralloc.h>
-#include <skalibs/bufalloc.h>
 #include <skalibs/error.h>
 #include <skalibs/strerr2.h>
 #include <skalibs/tai.h>
@@ -30,6 +27,9 @@
 #define dieusage() strerr_dieusage(100, USAGE)
 #define dienomem() strerr_diefu1sys(111, "alloc")
 
+#define INSIZE 1024
+#define OUTSIZE 1920
+
 #define reset_timeout() tain_addsec_g(&deadline, 300000)
 
 static int fdctl ;
@@ -39,53 +39,39 @@ static int wantexec = 0 ;
 typedef struct io_s io_t, *io_t_ref ;
 struct io_s {
   buffer in ;
-  bufalloc out ;
-  stralloc indata ;
-  char buf[BUFFER_INSIZE] ;
+  buffer out ;
+  size_t w ;
+  char line[INSIZE] ;
+  char inbuf[INSIZE] ;
+  char outbuf[OUTSIZE] ;
 } ;
 
 static io_t io[2] =
 {
-  { .in = BUFFER_INIT(&buffer_read, 0, io[0].buf, BUFFER_INSIZE), .out = BUFALLOC_INIT(&fd_write, 1), .indata = STRALLOC_ZERO, .buf = "" },
-  { .in = BUFFER_ZERO, .out = BUFALLOC_ZERO, .indata = STRALLOC_ZERO, .buf = "" }
+  { .in = BUFFER_INIT(&buffer_read, 0, io[0].inbuf, INSIZE), .out = BUFFER_INIT(&buffer_write, 1, io[0].outbuf, OUTSIZE), .w = 0 },
+  { .w = 0 }
 } ;
 
 typedef int cbfunc (char const *) ;
 typedef cbfunc *cbfunc_ref ;
 
-typedef struct cbnode_s cbnode, *cbnode_ref ;
-struct cbnode_s
-{
-  cbnode *prev ;
-  cbnode *next ;
-  cbfunc_ref f ;
-} ;
+#define MAXCBQ 16
 
-static cbnode cbsentinel = { .prev = &cbsentinel, .next = &cbsentinel, .f = 0 } ;
+static cbfunc_ref cbq[MAXCBQ] ;
+static size_t cbq_head = 0, cbq_tail = 0 ;
 
 static void cbfunc_enqueue (cbfunc_ref f)
 {
-  cbnode *node = alloc(sizeof(cbnode)) ;
-  if (!node) dienomem() ;
-  node->f = f ;
-  node->next = &cbsentinel ;
-  node->prev = cbsentinel.prev ;
-  cbsentinel.prev->next = node ;
-  cbsentinel.prev = node ;
-}
-
-static inline void cbfunc_pop (void)
-{
-  cbnode *node = cbsentinel.next ;
-  if (node == &cbsentinel) strerr_dief1x(101, "can't happen: popping an empty queue!") ;
-  node->next->prev = node->prev ;
-  cbsentinel.next = node->next ;
-  alloc_free(node) ;
+  size_t newhead = (cbq_head + 1) % MAXCBQ ;
+  if (newhead == cbq_tail)
+    strerr_dief1x(101, "cbq full, increase MAXCBQ") ;
+  cbq[cbq_head] = f ;
+  cbq_head = newhead ;
 }
 
 static inline void answer_enqueue (char const *s)
 {
-  if (!bufalloc_puts(&io[0].out, s)) dienomem() ;
+  if (buffer_puts(&io[0].out, s) < 0) _exit(1) ;  /* unresponsive client */
 }
 
 static int answer_forward (char const *s)
@@ -125,7 +111,9 @@ static void process_server_line (char const *s)
    || s[2] < '0' || s[2] > '9'
    || (s[3] != ' ' && s[3] != '-'))
     strerr_dief1x(100, "server is not speaking SMTP") ;
-  if ((*cbsentinel.next->f)(s)) cbfunc_pop() ;
+  if (cbq_head == cbq_tail)
+    strerr_dief1x(101, "can't happen: popping an empty cbq!") ;
+  if ((*cbq[cbq_tail])(s)) cbq_tail = (cbq_tail + 1) % MAXCBQ ;
 }
 
 typedef int cmdfunc (char const *) ;
@@ -140,7 +128,7 @@ struct cmdmap_s
 
 static int command_enqueue (char const *s, cbfunc_ref f)
 {
-  if (!bufalloc_puts(&io[1].out, s)) dienomem() ;
+  if (buffer_puts(&io[1].out, s) < 0) _exit(1) ;  /* unresponsive server */
   cbfunc_enqueue(f) ;
   return 0 ;
 }
@@ -172,21 +160,24 @@ static int do_ehlo (char const *s)
 static int do_notls (char const *s)
 {
   size_t n = buffer_len(&io[0].in) ;
-  if (!bufalloc_puts(&io[1].out, s)) dienomem() ;
+  if (buffer_puts(&io[1].out, s) < 0) _exit(1) ;
   fd_close(fdctl) ;
   fd_close(sslfds[1]) ;
   fd_close(sslfds[0]) ;
   if (n)
   {
-    if (!stralloc_readyplus(&io[1].out.x, n)) dienomem() ;
-    buffer_getnofill(&io[0].in, io[1].out.x.s + io[1].out.x.len, n) ;
-    io[1].out.x.len += n ;
+    struct iovec v[2] ;
+    buffer_rpeek(&io[0].in, v) ;
+    if (buffer_putv(&io[1].out, v, 2) < 0) _exit(1) ;
+    buffer_rseek(&io[0].in, n) ;
   }
   n = buffer_len(&io[1].in) ;
+  if (n)
   {
-    if (!stralloc_readyplus(&io[0].out.x, n)) dienomem() ;
-    buffer_getnofill(&io[1].in, io[0].out.x.s + io[0].out.x.len, n) ;
-    io[0].out.x.len += n ;
+    struct iovec v[2] ;
+    buffer_rpeek(&io[1].in, v) ;
+    if (buffer_putv(&io[0].out, v, 2) < 0) _exit(1) ;
+    buffer_rseek(&io[1].in, n) ;
   }
   wantexec = 1 ;
   return 1 ;
@@ -248,8 +239,8 @@ static int child (int fdr, int fdw)
 
   if (ndelay_on(0) < 0 || ndelay_on(1) < 0 || ndelay_on(fdr) < 0 || ndelay_on(fdw) < 0)
     strerr_diefu1sys(111, "make fds non-blocking") ;
-  buffer_init(&io[1].in, &buffer_read, fdr, io[0].buf, BUFFER_INSIZE) ;
-  bufalloc_init(&io[1].out, &fd_write, fdw) ;
+  buffer_init(&io[1].in, &buffer_read, fdr, io[1].inbuf, INSIZE) ;
+  buffer_init(&io[1].out, &buffer_write, fdw, io[1].outbuf, OUTSIZE) ;
   tain_now_set_stopwatch_g() ;
   reset_timeout() ;
 
@@ -258,11 +249,11 @@ static int child (int fdr, int fdw)
   for (;;)
   {
     int r ;
-    if (!bufalloc_len(&io[0].out) && (x[2].fd == -1 || (cbsentinel.next == &cbsentinel && wantexec))) break ;
+    if (!buffer_len(&io[0].out) && (x[2].fd == -1 || (cbq_head == cbq_tail && wantexec))) break ;
     x[0].events = !wantexec ? IOPAUSE_READ : 0 ;
-    x[1].events = bufalloc_len(&io[0].out) ? IOPAUSE_WRITE : 0 ;
+    x[1].events = buffer_len(&io[0].out) ? IOPAUSE_WRITE : 0 ;
     x[2].events = wantexec != 1 ? IOPAUSE_READ : 0 ;
-    x[3].events = bufalloc_len(&io[1].out) ? IOPAUSE_WRITE : 0 ;
+    x[3].events = buffer_len(&io[1].out) ? IOPAUSE_WRITE : 0 ;
     r = iopause_g(x, 4, &deadline) ;
     if (r == -1) strerr_diefu1sys(111, "iopause") ;
     if (!r) strerr_dief1x(99, "timed out") ;
@@ -271,14 +262,14 @@ static int child (int fdr, int fdw)
     if (x[1].events & x[1].revents & IOPAUSE_WRITE)
     {
       reset_timeout() ;
-      if (!bufalloc_flush(&io[0].out) && !error_isagain(errno))
+      if (!buffer_flush(&io[0].out) && !error_isagain(errno))
         strerr_diefu1sys(111, "write to client") ;
     }
 
     if (x[3].events & x[3].revents & IOPAUSE_WRITE)
     {
       reset_timeout() ;
-      if (!bufalloc_flush(&io[1].out) && !error_isagain(errno))
+      if (!buffer_flush(&io[1].out) && !error_isagain(errno))
         strerr_diefu1sys(111, "write to server") ;
     }
 
@@ -287,7 +278,7 @@ static int child (int fdr, int fdw)
       reset_timeout() ;
       for (;;)
       {
-        int r = skagetln(&io[1].in, &io[1].indata, '\n') ;
+        int r = getlnmax(&io[1].in, io[1].line, INSIZE - 1, &io[1].w, '\n') ;
         if (r < 0)
         {
           if (error_isagain(errno)) break ;
@@ -300,9 +291,9 @@ static int child (int fdr, int fdw)
           wantexec = 0 ;
           break ;
         }
-        if (!stralloc_0(&io[1].indata)) dienomem() ;
-        process_server_line(io[1].indata.s) ;
-        io[1].indata.len = 0 ;
+        io[1].line[io[1].w] = 0 ;
+        process_server_line(io[1].line) ;
+        io[1].w = 0 ;
       }
     }
 
@@ -311,22 +302,23 @@ static int child (int fdr, int fdw)
       reset_timeout() ;
       for (;;)
       {
-        int r = skagetln(&io[0].in, &io[0].indata, '\n') ;
+        int r = getlnmax(&io[0].in, io[0].line, INSIZE - 1, &io[0].w, '\n') ;
         if (r < 0)
         {
           if (error_isagain(errno)) break ;
+          else if (errno == ERANGE) _exit(1) ;  /* DoS attempt, just gtfo */
           else strerr_diefu1sys(111, "read line from client") ;
         }
         if (!r) _exit(0) ;
-        if (!stralloc_0(&io[0].indata)) dienomem() ;
-        if (process_client_line(io[0].indata.s)) break ;
-        io[0].indata.len = 0 ;
+        io[0].line[io[0].w] = 0 ;
+        if (process_client_line(io[0].line)) break ;
+        io[0].w = 0 ;
       }
     }
   }
 
   if (!wantexec) _exit(0) ;
-  if (bufalloc_len(&io[1].out) && !bufalloc_timed_flush_g(&io[1].out, &deadline))
+  if (buffer_len(&io[1].out) && !buffer_timed_flush_g(&io[1].out, &deadline))
     strerr_diefu1sys(111, "write to server") ;
   if (wantexec >= 2)
   {
@@ -336,7 +328,7 @@ static int child (int fdr, int fdw)
     fd_shutdown(fdctl, 1) ;
     for (;;)
     {
-      ssize_t r = fd_read(fdctl, io[1].buf, BUFFER_INSIZE) ;
+      ssize_t r = fd_read(fdctl, io[1].outbuf, OUTSIZE) ;
       if (r < 0) strerr_diefu1sys(111, "read handshake data") ;
       if (!r) break ;
       got = 1 ;
