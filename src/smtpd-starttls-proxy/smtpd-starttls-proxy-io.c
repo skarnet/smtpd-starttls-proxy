@@ -185,7 +185,7 @@ static int do_notls (char const *s)
 static int do_starttls (char const *s)
 {
   if (buffer_len(&io[0].in))
-    answer_enqueue("503 Stop yammering after saying STARTTLS\r\n") ;
+    answer_enqueue("503 After STARTTLS you need to stfu\r\n") ;
   else
   {
     command_enqueue("RSET\r\n", &trigger_starttls) ;
