@@ -5,12 +5,11 @@
 #include <string.h>
 #include <strings.h>
 #include <stdlib.h>
+#include <sys/uio.h>
 
 #include <skalibs/gccattributes.h>
-#include <skalibs/posixplz.h>
 #include <skalibs/types.h>
 #include <skalibs/sgetopt.h>
-#include <skalibs/allreadwrite.h>
 #include <skalibs/buffer.h>
 #include <skalibs/error.h>
 #include <skalibs/strerr2.h>
@@ -230,8 +229,8 @@ static int process_client_line (char const *s)
 
  /* Engine */
 
-static int child (int, int) gccattr_noreturn ;
-static int child (int fdr, int fdw)
+static void child (int, int) gccattr_noreturn ;
+static void child (int fdr, int fdw)
 {
   iopause_fd x[4] = { { .fd = 0 }, { .fd = 1 }, { .fd = fdr }, { .fd = fdw } } ;
   tain_t deadline ;
@@ -323,7 +322,7 @@ static int child (int fdr, int fdw)
   if (wantexec >= 2)
   {
     int got = 0 ;
-    if (fd_write(fdctl, "Y", 1) < 0)
+    if (write(fdctl, "Y", 1) != 1)
       strerr_diefu1sys(111, "send ucspi-tls start command") ;
     fd_shutdown(fdctl, 1) ;
     for (;;)
@@ -392,7 +391,7 @@ int main (int argc, char const *const *argv)
     case 0 :
       close(p[0][1]) ;
       close(p[1][0]) ;
-      return child(p[0][0], p[1][1]) ;
+      child(p[0][0], p[1][1]) ;
     default : break ;
   }
 
