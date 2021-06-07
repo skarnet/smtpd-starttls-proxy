@@ -24,12 +24,11 @@
 
 #define USAGE "smtpd-starttls-proxy-io [ -- ] prog..."
 #define dieusage() strerr_dieusage(100, USAGE)
-#define dienomem() strerr_diefu1sys(111, "alloc")
 
 #define INSIZE 1024
 #define OUTSIZE 1920
 
-#define reset_timeout() tain_addsec_g(&deadline, 300000)
+#define reset_timeout() tain_addsec_g(&deadline, 300)
 
 static int fdctl ;
 static int sslfds[2] ;
@@ -260,21 +259,24 @@ static void child (int fdr, int fdw)
 
     if (x[1].events & x[1].revents & IOPAUSE_WRITE)
     {
-      reset_timeout() ;
-      if (!buffer_flush(&io[0].out) && !error_isagain(errno))
-        strerr_diefu1sys(111, "write to client") ;
+      if (!buffer_flush(&io[0].out))
+      {
+        if (error_isagain(errno)) strerr_diefu1sys(111, "write to client") ;
+      }
+      else reset_timeout() ;
     }
 
     if (x[3].events & x[3].revents & IOPAUSE_WRITE)
     {
-      reset_timeout() ;
-      if (!buffer_flush(&io[1].out) && !error_isagain(errno))
-        strerr_diefu1sys(111, "write to server") ;
+      if (!buffer_flush(&io[1].out))
+      {
+        if (!error_isagain(errno)) strerr_diefu1sys(111, "write to server") ;
+      }
+      else reset_timeout() ;
     }
 
     if (x[2].revents & IOPAUSE_READ)
     {
-      reset_timeout() ;
       for (;;)
       {
         int r = getlnmax(&io[1].in, io[1].line, INSIZE - 1, &io[1].w, '\n') ;
@@ -291,6 +293,7 @@ static void child (int fdr, int fdw)
           break ;
         }
         io[1].line[io[1].w] = 0 ;
+        reset_timeout() ;
         process_server_line(io[1].line) ;
         io[1].w = 0 ;
       }
@@ -298,7 +301,6 @@ static void child (int fdr, int fdw)
 
     if (x[0].revents & IOPAUSE_READ)
     {
-      reset_timeout() ;
       for (;;)
       {
         int r = getlnmax(&io[0].in, io[0].line, INSIZE - 1, &io[0].w, '\n') ;
@@ -310,6 +312,7 @@ static void child (int fdr, int fdw)
         }
         if (!r) _exit(0) ;
         io[0].line[io[0].w] = 0 ;
+        reset_timeout() ;
         if (process_client_line(io[0].line)) break ;
         io[0].w = 0 ;
       }
