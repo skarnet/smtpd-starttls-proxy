@@ -232,7 +232,7 @@ static void child (int, int) gccattr_noreturn ;
 static void child (int fdr, int fdw)
 {
   iopause_fd x[4] = { { .fd = 0 }, { .fd = 1 }, { .fd = fdr }, { .fd = fdw } } ;
-  tain_t deadline ;
+  tain deadline ;
   PROG = "smtpd-starttls-proxy-io" ;
 
   if (ndelay_on(0) < 0 || ndelay_on(1) < 0 || ndelay_on(fdr) < 0 || ndelay_on(fdw) < 0)
@@ -356,7 +356,7 @@ int main (int argc, char const *const *argv)
   int p[2][2] ;
   PROG = "smtpd-starttls-proxy-io (parent)" ;
   {
-    subgetopt_t l = SUBGETOPT_ZERO ;
+    subgetopt l = SUBGETOPT_ZERO ;
     for (;;)
     {
       int opt = subgetopt_r(argc, argv, "", &l) ;
