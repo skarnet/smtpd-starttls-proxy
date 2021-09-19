@@ -4,5 +4,5 @@
 
 src/smtpd-starttls-proxy/smtpd-starttls-proxy-io.o src/smtpd-starttls-proxy/smtpd-starttls-proxy-io.lo: src/smtpd-starttls-proxy/smtpd-starttls-proxy-io.c
 
-smtpd-starttls-proxy-io: EXTRA_LIBS := -lskarnet
+smtpd-starttls-proxy-io: EXTRA_LIBS := -lskarnet ${SOCKET_LIB} ${SYSCLOCK_LIB}
 smtpd-starttls-proxy-io: src/smtpd-starttls-proxy/smtpd-starttls-proxy-io.o
