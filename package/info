@@ -1,4 +1,4 @@
 package=smtpd-starttls-proxy
-version=0.0.1.1
+version=0.0.1.2
 category=mail
 package_macro_name=SMTPD_STARTTLS_PROXY
