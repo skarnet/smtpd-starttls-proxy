@@ -1,5 +1,11 @@
 Changelog for smtpd-starttls-proxy.
 
+In 0.0.1.3
+----------
+
+ - Adaptation to skalibs-2.14.0.0.
+
+
 In 0.0.1.2
 ----------
 
