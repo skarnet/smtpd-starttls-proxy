@@ -30,9 +30,7 @@
 
 #define reset_timeout() tain_addsec_g(&deadline, 300)
 
-static int fdctl ;
-static int sslfds[2] ;
-static int wantexec = 0 ;
+#define MAXCBQ 16
 
 typedef struct io_s io_t, *io_t_ref ;
 struct io_s {
@@ -44,16 +42,27 @@ struct io_s {
   char outbuf[OUTSIZE] ;
 } ;
 
+typedef int cmdfunc (char const *) ;
+typedef cmdfunc *cmdfunc_ref ;
+
+struct cmdmap_s
+{
+  char const *name ;
+  cmdfunc_ref f ;
+} ;
+
+typedef int cbfunc (char const *) ;
+typedef cbfunc *cbfunc_ref ;
+
 static io_t io[2] =
 {
   { .in = BUFFER_INIT(&buffer_read, 0, io[0].inbuf, INSIZE), .out = BUFFER_INIT(&buffer_write, 1, io[0].outbuf, OUTSIZE), .w = 0 },
   { .w = 0 }
 } ;
 
-typedef int cbfunc (char const *) ;
-typedef cbfunc *cbfunc_ref ;
-
-#define MAXCBQ 16
+static int fdctl ;
+static int sslfds[2] ;
+static int wantexec = 0 ;
 
 static cbfunc_ref cbq[MAXCBQ] ;
 static size_t cbq_head = 0, cbq_tail = 0 ;
@@ -114,15 +123,16 @@ static void process_server_line (char const *s)
   if ((*cbq[cbq_tail])(s)) cbq_tail = (cbq_tail + 1) % MAXCBQ ;
 }
 
-typedef int cmdfunc (char const *) ;
-typedef cmdfunc *cmdfunc_ref ;
-
-typedef struct cmdmap_s cmdmap, *cmdmap_ref ;
-struct cmdmap_s
+static int namecmp (void const *a, void const *b)
 {
-  char const *name ;
-  cmdfunc_ref f ;
-} ;
+  char const *key = a ;
+  char const *name = ((struct cmdmap_s const *)b)->name ;
+  size_t len = strlen(name) ;
+  int r = strncasecmp(key, name, len) ;
+  if (r) return r ;
+  return !(key[len] == ' ' || key[len] == '\r' || key[len] == '\n') ;
+}
+#define BSEARCH(key, array) bsearch(key, (array), sizeof(array)/sizeof(struct cmdmap_s), sizeof(struct cmdmap_s), &namecmp)
 
 static int command_enqueue (char const *s, cbfunc_ref f)
 {
@@ -193,34 +203,25 @@ static int do_starttls (char const *s)
   return 0 ;
 }
 
-static cmdmap const commands[] =
-{
-  { .name = "ehlo", .f = &do_ehlo },
-  { .name = "starttls", .f = &do_starttls },
-  { .name = "helo", .f = &do_notls },
-  { .name = "mail", .f = &do_notls },
-  { .name = "rcpt", .f = &do_badorder },
-  { .name = "data", .f = &do_badorder },
-  { .name = "rset", .f = &do_forward },
-  { .name = "vrfy", .f = &do_forward },
-  { .name = "expn", .f = &do_forward },
-  { .name = "help", .f = &do_forward },
-  { .name = "noop", .f = &do_noop },
-  { .name = "quit", .f = &do_forward },
-  { .name = 0, .f = 0 }
-} ;
-
 static int process_client_line (char const *s)
 {
-  cmdmap const *cmd = commands ;
-  for (; cmd->name ; cmd++)
+  static struct cmdmap_s const commands[] =
   {
-    size_t len = strlen(cmd->name) ;
-    if (!strncasecmp(s, cmd->name, strlen(cmd->name))
-     && (s[len] == ' ' || s[len] == '\r' || s[len] == '\n'))
-      break ;
-  }
-  if (cmd->name) return (*cmd->f)(s) ;
+    { .name = "data", .f = &do_badorder },
+    { .name = "ehlo", .f = &do_ehlo },
+    { .name = "expn", .f = &do_forward },
+    { .name = "helo", .f = &do_notls },
+    { .name = "help", .f = &do_forward },
+    { .name = "mail", .f = &do_notls },
+    { .name = "noop", .f = &do_noop },
+    { .name = "quit", .f = &do_forward },
+    { .name = "rcpt", .f = &do_badorder },
+    { .name = "rset", .f = &do_forward },
+    { .name = "starttls", .f = &do_starttls },
+    { .name = "vrfy", .f = &do_forward }
+  } ;
+  struct cmdmap_s const *cmd = BSEARCH(s, commands) ;
+  if (cmd) return (*cmd->f)(s) ;
   answer_enqueue("500 SMTP motherfucker, do you speak it?\r\n") ;
   return 0 ;
 }
