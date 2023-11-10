@@ -344,10 +344,9 @@ static void child (int fdr, int fdw)
   {
     char fmtr[UINT_FMT] ;
     char fmtw[UINT_FMT] ;
-    char const *newargv[7] = { S6_EXTBINPREFIX "s6-ioconnect", "-r", fmtr, "-w", fmtw, 0, 0 } ;
+    char const *newargv[6] = { S6_EXTBINPREFIX "s6-ioconnect", "-r", fmtr, "-w", fmtw, 0 } ;
     fmtr[uint_fmt(fmtr, fdr)] = 0 ;
     fmtw[uint_fmt(fmtw, fdw)] = 0 ;
-    if (wantexec == 1) newargv[5] = "-01" ;
     xexec(newargv) ;
   }
 }

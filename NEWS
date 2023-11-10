@@ -1,5 +1,11 @@
 Changelog for smtpd-starttls-proxy.
 
+In 0.0.1.4
+----------
+
+ - Drop the -01 option to s6-ioconnect invocation.
+
+
 In 0.0.1.3
 ----------
 
