@@ -1,5 +1,11 @@
 Changelog for smtpd-starttls-proxy.
 
+In 0.0.1.5
+----------
+
+ - Align to rest of skaware.
+
+
 In 0.0.1.4
 ----------
 
