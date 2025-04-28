@@ -1,9 +1,10 @@
 Changelog for smtpd-starttls-proxy.
 
-In 0.0.1.6
+In 0.0.2.0
 ----------
 
  - Bugfixes.
+ - pkg-config support.
 
 
 In 0.0.1.5

@@ -1,3 +1,2 @@
-/package/prog/skalibs
-/package/admin/nsss $usensss
-/package/admin/s6
+true	true	/package/prog/skalibs	2.14.4.0	libskarnet
+true	false	/package/admin/s6	2.13.2.0	libs6
