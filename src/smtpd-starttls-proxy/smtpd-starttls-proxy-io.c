@@ -236,7 +236,7 @@ static void child (int fdr, int fdw)
   tain deadline ;
   PROG = "smtpd-starttls-proxy-io" ;
 
-  if (ndelay_on(0) < 0 || ndelay_on(1) < 0 || ndelay_on(fdr) < 0 || ndelay_on(fdw) < 0)
+  if (ndelay_on(0) == -1 || ndelay_on(1) == -1 || ndelay_on(fdr) == -1 || ndelay_on(fdw) == -1)
     strerr_diefu1sys(111, "make fds non-blocking") ;
   buffer_init(&io[1].in, &buffer_read, fdr, io[1].inbuf, INSIZE) ;
   buffer_init(&io[1].out, &buffer_write, fdw, io[1].outbuf, OUTSIZE) ;
@@ -326,6 +326,8 @@ static void child (int fdr, int fdw)
   if (wantexec >= 2)
   {
     int got = 0 ;
+    if (ndelay_off(0) == -1 || ndelay_off(1) == -1)
+      strerr_diefu1sys(111, "make fds blocking") ;
     if (write(fdctl, "Y", 1) != 1)
       strerr_diefu1sys(111, "send ucspi-tls start command") ;
     fd_shutdown(fdctl, 1) ;
