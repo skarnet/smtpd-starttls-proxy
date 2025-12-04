@@ -323,11 +323,11 @@ static void child (int fdr, int fdw)
   if (!wantexec) _exit(0) ;
   if (buffer_len(&io[1].out) && !buffer_timed_flush_g(&io[1].out, &deadline))
     strerr_diefu1sys(111, "write to server") ;
+  if (ndelay_off(0) == -1 || ndelay_off(1) == -1)
+    strerr_diefu1sys(111, "make fds blocking") ;
   if (wantexec >= 2)
   {
     int got = 0 ;
-    if (ndelay_off(0) == -1 || ndelay_off(1) == -1)
-      strerr_diefu1sys(111, "make fds blocking") ;
     if (write(fdctl, "Y", 1) != 1)
       strerr_diefu1sys(111, "send ucspi-tls start command") ;
     fd_shutdown(fdctl, 1) ;
