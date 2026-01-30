@@ -1,1 +1,3 @@
+  --with-qmail-home=DIR       qmail installation directory [/var/qmail]
+  --with-qmailr-ids=uid:gid   qmail-remote user:group [qmailr:qmail]
 

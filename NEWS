@@ -1,5 +1,11 @@
 Changelog for smtpd-starttls-proxy.
 
+In 0.1.0.0
+----------
+
+ - New binary: qmail-remote.
+
+
 In 0.0.2.1
 ----------
 

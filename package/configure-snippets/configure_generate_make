@@ -1,1 +1,3 @@
+echo "QMAIL_HOME := $qmailhome"
+echo "QMAILR_IDS := $qmailrids"
 

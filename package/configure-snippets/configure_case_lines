@@ -1,1 +1,2 @@
-
+    --with-qmail-home=*) qmailhome=${arg#*=} ;;
+    --with-qmailr-ids=*) qmailrids=${arg#*=} ;;

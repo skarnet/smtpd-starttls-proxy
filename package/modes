@@ -1,1 +1,2 @@
 smtpd-starttls-proxy-io	0755
+qmail-smtpc		0755

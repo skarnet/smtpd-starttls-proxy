@@ -1,1 +1,2 @@
-
+qmailhome=/var/qmail
+qmailrids=qmailr:qmail

@@ -1,0 +1,3 @@
+qmailr_error.o
+qmailr_tcpto.o
+-lskarnet

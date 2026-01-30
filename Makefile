@@ -24,6 +24,7 @@ PC_TARGETS :=
 LIB_DEFS :=
 BIN_SYMLINKS :=
 TEST_BINS :=
+EXTRA_INSTALL :=
 
 -include config.mak
 include package/targets.mak
@@ -42,6 +43,7 @@ endif
 
 lib$(2).pc:
 	exec env \
+	  prefix="$(prefix)" \
 	  library="$(2)" \
 	  includedir="$(includedir)" \
 	  dynlibdir="$(dynlibdir)" \
@@ -123,7 +125,7 @@ ifneq ($(strip $(ALL_BINS)$(SHARED_LIBS)),)
 	exec $(STRIP) -R .note -R .comment $(ALL_BINS) $(SHARED_LIBS)
 endif
 
-install: install-dynlib install-libexec install-bin install-symlinks install-lib install-include install-pkgconfig
+install: install-dynlib install-libexec install-bin install-symlinks install-lib install-include install-pkgconfig $(EXTRA_INSTALL)
 install-dynlib: $(SHARED_LIBS:lib%.$(SHLIB_EXT).xyzzy=$(DESTDIR)$(dynlibdir)/lib%.$(SHLIB_EXT))
 install-libexec: $(LIBEXEC_TARGETS:%=$(DESTDIR)$(libexecdir)/%)
 install-bin: $(BIN_TARGETS:%=$(DESTDIR)$(bindir)/%)
