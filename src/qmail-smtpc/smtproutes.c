@@ -21,6 +21,7 @@
 
 #include <smtpd-starttls-proxy/config.h>
 #include "qmailr.h"
+#include "qmail-smtpc.h"
 
 
 /*
@@ -88,7 +89,7 @@ END=a, X=b
 static inline uint8_t cclass (char c)
 {
   static uint8_t const table[128] = "0999999999299999999999999999999998918889999898786666666666399898877777788888888888888888884958898888888888888888888888888899999" ;
-  return c & 0x80 ? 9 : table[c] - '0' ;
+  return c & 0x80 ? 9 : table[(uint8_t)c] - '0' ;
 }
 
 static inline char getnext (buffer *b)
@@ -101,7 +102,7 @@ static inline char getnext (buffer *b)
 
 static inline void smtproutes_compile (int fdr, int fdw)
 {
-  static uint16_t const table[10][9] =
+  static uint16_t const table[10][10] =
   {
     { 0x000a, 0x0001, 0x0000, 0x0205, 0x0002, 0x000b, 0x0103, 0x0103, 0x0103, 0x000b },
     { 0x000a, 0x0001, 0x0000, 0x0001, 0x0001, 0x0001, 0x0001, 0x0001, 0x0001, 0x0001 },
@@ -231,4 +232,9 @@ int smtproutes_match (smtproutes const *routes, char const *s, stralloc *sa, siz
   uint16_unpack_big(data.s, port) ;
   if (!stralloc_catb(sa, data.s + 2, data.len - 2)) qmailr_tempsys("Unable to grow stralloc") ;
   return 1 ;
+}
+
+void smtproutes_free (smtproutes *routes)
+{
+  cdb_free(&routes->map) ;
 }

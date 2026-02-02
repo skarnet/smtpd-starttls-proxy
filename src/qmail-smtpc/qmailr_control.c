@@ -9,6 +9,7 @@
 #include <skalibs/fmtscan.h>
 #include <skalibs/stralloc.h>
 #include <skalibs/djbunix.h>
+#include <skalibs/skamisc.h>
 
 #include "qmailr.h"
 
@@ -35,7 +36,7 @@ int qmailr_control_read (char const *file, stralloc *sa, size_t *pos)
 int qmailr_control_readint (char const *file, unsigned int *x, stralloc *sa)
 {
   size_t pos ;
-  int r = qmailr_control_readfile(file, sa, &pos) ;
+  int r = qmailr_control_read(file, sa, &pos) ;
   if (r <= 0) return r ;
   sa->len = pos ;
   if (!uint0_scan(sa->s + sa->len, x)) return (errno = EPROTO, 0) ;

@@ -23,7 +23,7 @@ static int mx_cmp (void const *a, void const *b)
 
 void dns_init (void)
 {
-  if (!s6dns_init_options(0)) qmail_tempsys("Unable to init DNS") ;
+  if (!s6dns_init_options(0)) qmailr_tempsys("Unable to init DNS") ;
 }
 
 void dns_canon (char const *host, char const *const *recip, unsigned int n, size_t *recippos, genalloc *mxpos, stralloc *storage)
@@ -38,7 +38,7 @@ void dns_canon (char const *host, char const *const *recip, unsigned int n, size
     char const *at = strrchr(recip[i], '@') ;
     if (!at) qmailr_perm("Invalid recipient") ;
     atpos[i] = at - recip[i] ;
-    if (!s6dns_domain_fromstring_noqualify_encode(&info[i].q, at+1, strlen(at+1))
+    if (!s6dns_domain_fromstring_noqualify_encode(&info[i].q, at+1, strlen(at+1)))
       qmailr_tempsys("Unable to DNS-encode recipient domain") ;
     cnames[i].ds = genalloc_zero ;
     cnames[i].rtype = S6DNS_T_CNAME ;
@@ -48,7 +48,7 @@ void dns_canon (char const *host, char const *const *recip, unsigned int n, size
     info[i].parsefunc = &s6dns_message_parse_answer_domain ;
     info[i].data = cnames + i ;
   }
-  if (!s6dns_domain_fromstring_noqualify_encode(&info[n].q, host, strlen(host))
+  if (!s6dns_domain_fromstring_noqualify_encode(&info[n].q, host, strlen(host)))
     qmailr_tempsys("Unable to DNS-encode recipient domain") ;
 
   if (mxpos)
@@ -66,11 +66,11 @@ void dns_canon (char const *host, char const *const *recip, unsigned int n, size
   for (unsigned int i = 0 ; i < n ; i++)
   {
     recippos[i] = storage->len ;
-    box_encode(recip[i], atpos[i], storage) ;
+    // TODO: box_encode(recip[i], atpos[i], storage) ;
     if (!stralloc_catb(storage, "@", 1)) dienomem() ;
     if (!info[i].status && genalloc_len(s6dns_domain_t, &cnames[i].ds))
     {
-      if (!s6dns_domain_decode(genalloc_s(s6dns_domain_t, &cnames[i].ds))
+      if (!s6dns_domain_decode(genalloc_s(s6dns_domain_t, &cnames[i].ds)))
         qmailr_tempsys("Unable to parse CNAME") ;
       if (!stralloc_readyplus(storage, 256)) dienomem() ;
       recippos[i] = storage->len ;
@@ -92,7 +92,7 @@ void dns_canon (char const *host, char const *const *recip, unsigned int n, size
     {
       if (!s6dns_domain_decode(&mxs[i].exchange)) qmailr_tempsys("Unable to parse MX record") ;
       if (!stralloc_readyplus(storage, 256)) dienomem() ;
-      genalloc_catb(size_t, mxpos, storage->len) ;
+      genalloc_catb(size_t, mxpos, storage->len, 1) ;
       storage->len += s6dns_domain_tostring(storage->s + storage->len, 255, &mxs[i].exchange) ;
       storage->s[storage->len++] = 0 ;
     }
@@ -112,7 +112,7 @@ void dns_ip_of_mx (size_t const *pos, unsigned int n, mxip *tab, stralloc *stora
   s6dns_resolve_t info[N] ;
   for (unsigned int i = 0 ; i < n ; i++)
   {
-    if (!s6dns_domain_fromstring_noqualify_encode(&info[i].q, storage->s + pos[i], strlen(storage->s + pos[i]))
+    if (!s6dns_domain_fromstring_noqualify_encode(&info[i].q, storage->s + pos[i], strlen(storage->s + pos[i])))
       qmailr_tempsys("Unable to DNS-encode MX") ;
     ip4[i] = stralloc_zero ;
     info[i].qtype = S6DNS_T_A ;
@@ -141,16 +141,16 @@ void dns_ip_of_mx (size_t const *pos, unsigned int n, mxip *tab, stralloc *stora
     {
       for (unsigned int j = 0 ; j < ip4[i].len ; j += 4)
       {
-        if (bsearch(ip4.s + j, ipme4, n4, 4, &qmailr_memcmp4))
+        if (bsearch(ip4[i].s + j, ipme4, n4, 4, &qmailr_memcmp4))
         {
           memmove(ip4[i].s + j, ip4[i].s + ip4[i].len - 4, 4) ;
           ip4[i].len -= 4 ;
         }
       }
-      random_unsort(ip4.s, ip4.len >> 2, 4) ;
+      random_unsort(ip4[i].s, ip4[i].len >> 2, 4) ;
       tab[i].pos4 = storage->len ;
-      tab[i].n4 = ip4.len >> 2 ;
-      if (!stralloc_catb(&storage, ip4.s, ip4.len)) dienomem() ;
+      tab[i].n4 = ip4[i].len >> 2 ;
+      if (!stralloc_catb(storage, ip4[i].s, ip4[i].len)) dienomem() ;
       stralloc_free(ip4 + i) ;
     }
 
@@ -159,16 +159,16 @@ void dns_ip_of_mx (size_t const *pos, unsigned int n, mxip *tab, stralloc *stora
     {
       for (unsigned int j = 0 ; j < ip6[i].len ; j += 16)
       {
-        if (bsearch(ip6.s + j, ipme6, n6, 16, &qmailr_memcmp16))
+        if (bsearch(ip6[i].s + j, ipme6, n6, 16, &qmailr_memcmp16))
         {
           memmove(ip6[i].s + j, ip6[i].s + ip6[i].len - 16, 16) ;
           ip6[i].len -= 16 ;
         }
       }
-      random_unsort(ip6.s, ip6.len >> 4, 16) ;
+      random_unsort(ip6[i].s, ip6[i].len >> 4, 16) ;
       tab[i].pos6 = storage->len ;
-      tab[i].n6 = ip6.len >> 4 ;
-      if (!stralloc_catb(&storage, ip6.s, ip6.len)) dienomem() ;
+      tab[i].n6 = ip6[i].len >> 4 ;
+      if (!stralloc_catb(storage, ip6[i].s, ip6[i].len)) dienomem() ;
       stralloc_free(ip6 + i) ;
     }
 #endif

@@ -1,5 +1,8 @@
 /* ISC license. */
 
+#ifndef QMAILR_H
+#define QMAILR_H
+
 #include <stddef.h>
 #include <stdint.h>
 
@@ -39,6 +42,7 @@ extern int qmailr_tcpto_update (char const *, int, int) ;
 
 extern int qmailr_control_read (char const *, stralloc *, size_t *) ;
 extern int qmailr_control_readint (char const *file, unsigned int *, stralloc *) ;
+extern int qmailr_control_readiplist (char const *, stralloc *, stralloc *) ;
 
 
 /* qmailr_tls */
@@ -56,3 +60,5 @@ struct qmailr_tls_s
 #define QMAILR_TLS_ZERO { 0 }
 
 extern int qmailr_tls_init (qmailr_tls *, stralloc *) ;
+
+#endif

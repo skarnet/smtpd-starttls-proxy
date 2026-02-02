@@ -29,12 +29,13 @@ int main (int argc, char const *const *argv)
   uint16_t port = 25 ;
   int r ;
 
-  if (argc-- < 4) dieusage() ; argv++ ;
+  if (argc-- < 4) dieusage() ;
+  argv++ ;
   if (chdir(SMTPD_STARTTLS_PROXY_QMAIL_HOME) == -1) qmailr_temp("Unable to chdir to " SMTPD_STARTTLS_PROXY_QMAIL_HOME) ;
   if (sig_altignore(SIGPIPE) == -1) qmailr_tempsys("Unable to ignore SIGPIPE") ;
   host = *argv++ ; argc-- ;
   tain_now_set_stopwatch_g() ;
-  qmailr_dns_init() ;
+  dns_init() ;
 
  /* init control */
 
@@ -42,13 +43,13 @@ int main (int argc, char const *const *argv)
   if (r == -1) qmailr_tempsys("Unable to read control/me") ;
   else if (!r) qmailr_temp("Invalid control/me") ;
 
-  r = qmail_control_read("control/helohost", &storage, &helopos) ;
+  r = qmailr_control_read("control/helohost", &storage, &helopos) ;
   if (r == -1) qmailr_tempsys("Unable to read control/helohost") ;
   else if (!r) helopos = mepos ;
 
-  r = qmail_control_readint("control/timeoutconnect", &timeoutconnect, &storage) ;
+  r = qmailr_control_readint("control/timeoutconnect", &timeoutconnect, &storage) ;
   if (r == -1) qmailr_tempsys("Unable to read control/timeoutconnect") ;
-  r = qmail_control_readint("control/timeoutremote", &timeoutremote, &storage) ;
+  r = qmailr_control_readint("control/timeoutremote", &timeoutremote, &storage) ;
   if (r == -1) qmailr_tempsys("Unable to read control/timeoutremote") ;
 
   if (!qmailr_control_readiplist("control/ipme", &ipme4, &ipme6))
@@ -73,6 +74,8 @@ int main (int argc, char const *const *argv)
     smtproutes_free(&routes) ;
   }
 
+  // TODO: box_encode(&senderpos) ;
+
   {
     genalloc mxpos = GENALLOC_ZERO ;
     int usehost ;
@@ -83,7 +86,7 @@ int main (int argc, char const *const *argv)
 
     unsigned int mxn = usehost ? 1 : genalloc_len(size_t, &mxpos) ;
     mxip mxind[mxn] ;
-    dns_ip_of_mx(usehost ? &hostpos : genalloc_s(size_t, &mxpos), mxn, mxip, storage, ipme4.s, ipme4.len >> 2, ipme6.s, ipme6.len >> 4) ;
+    dns_ip_of_mx(usehost ? &hostpos : genalloc_s(size_t, &mxpos), mxn, mxind, &storage, ipme4.s, ipme4.len >> 2, ipme6.s, ipme6.len >> 4) ;
     genalloc_free(size_t, &mxpos) ;
   }
 
