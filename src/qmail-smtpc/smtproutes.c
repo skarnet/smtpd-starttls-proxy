@@ -2,6 +2,7 @@
 
 #include <skalibs/bsdsnowflake.h>
 
+#include <string.h>
 #include <stdint.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -31,81 +32,87 @@
    directly) and RAM (the cdb is read-only and shared).
    The cdb is updated whenever control/smtproutes is newer.
    We have to lock around the test to avoid several
-   concurrent compilations; the lock feels a bit too big,
+   concurrent compilations; the current lock feels too big,
    the crit section can probably be made smaller, but the
-   current behaviour is safe and avoids retry heuristics.
+   behaviour is safe and avoids retry heuristics.
 */
 
 /*
-   Key to the control/smtproutes parser:
+   Key to the control/smtproutes parser
+   [host]:[relay[:port]]
+   An ip in square brackets is acceptable in host and relay, even ipv6
 
-	0	1	2	3	4	5
-st\ev	EOF	#	\n	:	0-9	other
 
-0				h	n	n
-START	END	COMMENT	START	RELAY	HOST	HOST
+	0	1	2	3	4	5	6	7	8	9
+st\ev	EOF	#	\n	:	[	]	0-9	a-f	other	special
+
+0				h			n	n	n
+START	END	COMMENT	START	RELAY	QHOST	X	HOST	HOST	HOST	X
 
 1
-COMMENT	END	COMMENT	START	COMMENT	COMMENT	COMMENT
+COMMENT	END	COMMENT	START	COMMENT	COMMENT	COMMENT	COMMENT	COMMENT	COMMENT COMMENT
 
-2		n		h	n	n
-HOST	X	HOST	X	RELAY	HOST	HOST
+2				n			n	n
+QHOST	X	X	X	QHOST	X	EHOST	QHOST	QHOST	X	X
 
-3	ra	n	ra	r	n	n
-RELAY	END	RELAY	START	PORT	RELAY	RELAY
+3		n		h			n	n	n
+HOST	X	HOST	X	RELAY	X	X	HOST	HOST	HOST	X
 
-4	pa		pa		n
-PORT	END	X	START	X	PORT	X
+4				h
+EHOST	X	X	X	RELAY	X	X	X	X	X	X
 
-END=5, X=6
+5	ra	n	ra	r			n	n	n
+RELAY	END	INRELAY	START	PORT	QRELAY	X	INRELAY	INRELAY	INRELAY	X
 
-0x08    n	push character
-0x10	h	compute host length
-0x20	r	compute relay length
-0x40	p	compute port
-0x80	a	add route entry
+6				n			n	n
+QRELAY	X	X	X	QRELAY	X	ERELAY	QRELAY	QRELAY	X	X
+
+7	ra		ra	r			n	n	n
+INRELAY	END	X	START	PORT	X	X	INRELAY INRELAY	INRELAY	X
+
+8	ra		ra	r
+ERELAY	END	X	START	PORT	X	X	X	X	X	X
+
+9	pa		pa				n
+PORT	END	X	START	X	X	X	PORT	X	X	X
+
+END=a, X=b
+
+0x0100  n	push character
+0x0200	h	compute host length
+0x0400	r	compute relay length
+0x0800	p	compute port
+0x1000	a	add route entry
 */
 
 static inline uint8_t cclass (char c)
 {
-  switch (c)
-  {
-    case 0 : return 0 ;
-    case '#' : return 1 ;
-    case '\n' : return 2 ;
-    case ':' : return 3 ;
-    case '0' :
-    case '1' :
-    case '2' :
-    case '3' :
-    case '4' :
-    case '5' :
-    case '6' :
-    case '7' :
-    case '8' :
-    case '9' : return 4 ;
-    default : break ;
-  }
-  return 5 ;
+  static uint8_t const table[128] = "0999999999299999999999999999999998918889999898786666666666399898877777788888888888888888884958898888888888888888888888888899999" ;
+  return c & 0x80 ? 9 : table[c] - '0' ;
 }
 
 static inline char getnext (buffer *b)
 {
   char c ;
   ssize_t r = buffer_get(b, &c, 1) ;
-  if (r == -1) qmailr_tempsys("unable to read from control/smtproutes") ;
+  if (r == -1) qmailr_tempsys("Unable to read from control/smtproutes") ;
   return r ? c : 0 ;
 }
 
 static inline void smtproutes_compile (int fdr, int fdw)
 {
-  static uint8_t const table[5][6] =
+  static uint16_t const table[10][9] =
   {
-    { 0x05, 0x01, 0x00, 0x13, 0x0a, 0x0a },
-    { 0x05, 0x01, 0x00, 0x01, 0x01, 0x01 },
-    { 0x06, 0x0a, 0x06, 0x13, 0x0a, 0x0a },
-    { 0xa5, 0x0b, 0xa0, 0x24, 0x0b, 0x0b },
-    { 0xc5, 0x06, 0xc0, 0x06, 0x0c, 0x06 }
+    { 0x000a, 0x0001, 0x0000, 0x0205, 0x0002, 0x000b, 0x0103, 0x0103, 0x0103, 0x000b },
+    { 0x000a, 0x0001, 0x0000, 0x0001, 0x0001, 0x0001, 0x0001, 0x0001, 0x0001, 0x0001 },
+    { 0x000b, 0x000b, 0x000b, 0x0102, 0x000b, 0x0004, 0x0102, 0x0102, 0x0102, 0x000b },
+    { 0x000b, 0x0103, 0x000b, 0x0205, 0x000b, 0x000b, 0x0103, 0x0103, 0x0103, 0x000b },
+    { 0x000b, 0x000b, 0x000b, 0x0205, 0x000b, 0x000b, 0x000b, 0x000b, 0x000b, 0x000b },
+    { 0x140a, 0x0107, 0x1400, 0x0409, 0x0006, 0x000b, 0x0107, 0x0107, 0x0107, 0x000b },
+    { 0x000b, 0x000b, 0x000b, 0x0106, 0x000b, 0x0008, 0x0106, 0x0106, 0x0106, 0x000b },
+    { 0x140a, 0x000b, 0x1400, 0x0409, 0x000b, 0x000b, 0x0107, 0x0107, 0x0107, 0x000b },
+    { 0x140a, 0x000b, 0x1400, 0x0409, 0x000b, 0x000b, 0x000b, 0x000b, 0x000b, 0x000b },
+    { 0x180a, 0x000b, 0x1800, 0x000b, 0x000b, 0x000b, 0x0109, 0x000b, 0x000b, 0x000b }
   } ;
   cdbmaker cm = CDBMAKER_ZERO ;
   stralloc sa = STRALLOC_ZERO ;
@@ -115,45 +122,46 @@ static inline void smtproutes_compile (int fdr, int fdw)
   uint8_t state = 0 ;
   if (!cdbmake_start(&cm, fdw)) qmailr_tempsys("Unable to cdbmake_start") ;
 
-  while (state < 5)
+  while (state < 0x0a)
   {
     char c = getnext(&b) ;
-    uint8_t val = table[state][cclass(c)] ;
-    state = val & 0x07 ;
-    if (val & 0x08)
+    uint16_t val = table[state][cclass(c)] ;
+    state = val & 0x000f ;
+    if (val & 0x0100)
     {
       if (!stralloc_catb(&sa, &c, 1)) qmailr_tempsys("Unable to grow stralloc") ;
     }
-    if (val & 0x10)
+    if (val & 0x0200)
     {
       relaypos = sa.len + 1 ;
       if (!stralloc_catb(&sa, "\0\0\31", 3)) qmailr_tempsys("Unable to grow stralloc") ;
     }
-    if (val & 0x20)
+    if (val & 0x0400)
     {
       if (!stralloc_0(&sa)) qmailr_tempsys("Unable to grow stralloc") ;
       relayend = sa.len ;
     }
-    if (val & 0x40)
+    if (val & 0x0800)
     {
       uint16_t port ;
       if (!stralloc_0(&sa)) qmailr_tempsys("Unable to grow stralloc") ;
       if (!uint160_scan(sa.s + relayend, &port)) qmailr_temp("Invalid port in control/smtproutes") ;
       uint16_pack_big(sa.s + relaypos, port) ;
     }
-    if (val & 0x80)
+    if (val & 0x0100)
     {
-      if (!cdbmake_add(&cm, sa.s, relaypos, sa.s + relaypos, relayend - relaypos))
-        qmailr_tempsys("Unable to cdbmake_add") ;
+      if (relaypos > 1 || relayend > 2 + relaypos)
+        if (!cdbmake_add(&cm, sa.s, relaypos, sa.s + relaypos, relayend - relaypos))
+          qmailr_tempsys("Unable to cdbmake_add") ;
       sa.len = 0 ;
     }
   }
-  if (state != 5) qmailr_temp("Syntax error in control/smtproutes") ;
+  if (state != 0x0a) qmailr_temp("Syntax error in control/smtproutes") ;
   stralloc_free(&sa) ;
   if (!cdbmake_finish(&cm)) qmailr_tempsys("Unable to cdbmake_finish") ;
 }
 
-int smtproutes_init (cdb *c)
+int smtproutes_init (smtproutes *routes)
 {
   static char const *cdbfile = SMTPD_STARTTLS_PROXY_QMAIL_HOME "/run/qmail-remote/smtproutes.cdb" ;
   static char const *lckfile = SMTPD_STARTTLS_PROXY_QMAIL_HOME "/run/qmail-remote/smtproutes.lock" ;
@@ -200,7 +208,7 @@ int smtproutes_init (cdb *c)
   }
 
  useit:
-  if (!cdb_init_fromfd(c, fdc)) qmailr_tempsys("Unable to mmap run/qmail-remote/smtproutes.cdb") ;
+  if (!cdb_init_fromfd(&routes->map, fdc)) qmailr_tempsys("Unable to mmap run/qmail-remote/smtproutes.cdb") ;
   fd_close(fdc) ;
   fd_close(fdl) ;
   return 1 ;
@@ -209,4 +217,18 @@ int smtproutes_init (cdb *c)
   fd_close(fdl) ;
   errno = 0 ;
   return 0 ;
+}
+
+int smtproutes_match (smtproutes const *routes, char const *s, stralloc *sa, size_t *pos, uint16_t *port)
+{
+  cdb_data data ;
+  int r = cdb_find(&routes->map, &data, s, strlen(s)) ;
+  if (r == -1) qmailr_temp("Invalid run/qmail-remote/smtproutes.cdb") ;
+  if (!r) return 0 ;
+  if (data.len < 3) return 0 ;
+  if (data.s[data.len - 1]) qmailr_temp("Invalid run/qmail-remote/smtproutes.cdb") ;
+  *pos = sa->len ;
+  uint16_unpack_big(data.s, port) ;
+  if (!stralloc_catb(sa, data.s + 2, data.len - 2)) qmailr_tempsys("Unable to grow stralloc") ;
+  return 1 ;
 }

@@ -1,3 +1,6 @@
+qmailr_control.o
 qmailr_error.o
 qmailr_tcpto.o
+qmailr_tls.o
+qmailr_utils.o
 -lskarnet

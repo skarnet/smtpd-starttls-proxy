@@ -35,16 +35,6 @@
    a shared lock for this (unsure why djb didn't).
 */
 
-static int memcmp4 (void const *a, void const *b)
-{
-  return memcmp(a, b, 4) ;
-}
-
-static int memcmp16 (void const *a, void const *b)
-{
-  return memcmp(a, b, 16) ;
-}
-
 int qmailr_tcpto_match (char const *ip, int is6)
 {
   char const *file = is6 ? SMTPD_STARTTLS_PROXY_QMAIL_HOME "/run/qmail-remote/tcpto6" : SMTPD_STARTTLS_PROXY_QMAIL_HOME "/queue/lock/tcpto" ;
@@ -59,7 +49,7 @@ int qmailr_tcpto_match (char const *ip, int is6)
   if (fd_lock(fd, 0, 0) == -1) goto err ;
   if (!cdb_init_fromfd(&c, fd)) goto err ;
   if (c.size % width) goto errproto ;
-  p = bsearch(ip, c.map, c.size / width, width, is6 ? &memcmp16 : &memcmp4) ;
+  p = bsearch(ip, c.map, c.size / width, width, is6 ? &qmailr_memcmp16 : &qmailr_memcmp4) ;
   if (p)
   {
     if (p[iplen] >= 2)
@@ -108,7 +98,7 @@ int qmailr_tcpto_update (char const *ip, int is6, int problem)
     {
       if (allread(fdr, buf, st.st_size) < st.st_size) goto err0 ;
       memset(buf + st.st_size, 0, width) ;
-      p = bsearch(ip, buf, n, width, is6 ? &memcmp16 : &memcmp4) ;
+      p = bsearch(ip, buf, n, width, is6 ? &qmailr_memcmp16 : &qmailr_memcmp4) ;
       if (p)
       {
         if (problem)
@@ -147,7 +137,7 @@ int qmailr_tcpto_update (char const *ip, int is6, int problem)
           memcpy(buf + i * width, buf + --n * width, width) ;
       if (n)
       {
-        qsort(buf, n, width, is6 ? &memcmp16 : &memcmp4) ;
+        qsort(buf, n, width, is6 ? &qmailr_memcmp16 : &qmailr_memcmp4) ;
         if (allwrite(fdw, buf, n * width) < n * width) goto err ;
       }
       if (ftruncate(fdw, n * width) == -1) goto err ;
