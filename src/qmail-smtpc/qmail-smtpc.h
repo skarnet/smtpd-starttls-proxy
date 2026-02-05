@@ -27,9 +27,7 @@ struct mxip_s
 } ;
 #define MXIP_ZERO { 0 }
 
-extern void dns_init (void) ;
-extern void dns_canon (char const *, char const *const *, unsigned int, size_t *, genalloc *, stralloc *) ;
-extern void dns_ip_of_mx (size_t const *, unsigned int, mxip *, stralloc *, char const *, unsigned int, char const *, unsigned int) ;
+extern void dns_stuff (char const *, char const *const *, unsigned int, size_t *, genalloc *, stralloc *, unsigned int, char const *, unsigned int, char const *, unsigned int, uint32_t) ;
 
 
 /* smtproutes */

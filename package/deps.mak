@@ -19,7 +19,7 @@ else
 libqmailr.a.xyzzy:src/qmail-smtpc/qmailr_control.lo src/qmail-smtpc/qmailr_error.lo src/qmail-smtpc/qmailr_tcpto.lo src/qmail-smtpc/qmailr_tls.lo src/qmail-smtpc/qmailr_utils.lo
 endif
 qmail-smtpc: EXTRA_LIBS :=
-qmail-smtpc: src/qmail-smtpc/qmail-smtpc.o src/qmail-smtpc/dns.o src/qmail-smtpc/smtproutes.o libqmailr.a.xyzzy -ls6dns -lskarnet
+qmail-smtpc: src/qmail-smtpc/qmail-smtpc.o src/qmail-smtpc/dns.o src/qmail-smtpc/smtproutes.o libqmailr.a.xyzzy -lskadns -ls6dns -lskarnet
 smtpd-starttls-proxy-io: EXTRA_LIBS := ${SOCKET_LIB} ${SYSCLOCK_LIB}
 smtpd-starttls-proxy-io: src/smtpd-starttls-proxy/smtpd-starttls-proxy-io.o -lskarnet
 INTERNAL_LIBS := libqmailr.a.xyzzy

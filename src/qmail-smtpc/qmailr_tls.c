@@ -10,6 +10,7 @@ int qmailr_tls_init (qmailr_tls *qt, stralloc *sa)
   static char const *tafile = SMTPD_STARTTLS_PROXY_QMAIL_HOME "/control/trustanchors" ;
   static char const *certfile = SMTPD_STARTTLS_PROXY_QMAIL_HOME "/control/clientcert" ;
   static char const *keyfile = SMTPD_STARTTLS_PROXY_QMAIL_HOME "/control/clientkey" ;
+  static char const *strictfile = SMTPD_STARTTLS_PROXY_QMAIL_HOME "/control/tlsstrictness" ;
 
   qmailr_tls tmp = QMAILR_TLS_ZERO ;
   size_t sabase = sa->len ;
@@ -17,6 +18,7 @@ int qmailr_tls_init (qmailr_tls *qt, stralloc *sa)
   if (r == -1) return 0 ;
   if (r)
   {
+    unsigned int strictness = 0 ;
     tmp.flagtls = 1 ;
     if (sa->s[sa->len - 2] == '/')
     {
@@ -31,6 +33,9 @@ int qmailr_tls_init (qmailr_tls *qt, stralloc *sa)
       if (r == -1) goto err ;
       if (r) tmp.flagclientcert = 1 ;
     }
+    r = qmailr_control_readint(strictfile, &strictness, sa) ;
+    if (r == -1) goto err ;
+    tmp.strictness = strictness & 3 ;
   }
 
   *qt = tmp ;

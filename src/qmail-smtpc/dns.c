@@ -1,18 +1,42 @@
 /* ISC license. */
 
 #include <string.h>
+#include <stdint.h>
+#include <limits.h>
 #include <stdlib.h>
+#include <errno.h>
 
 #include <skalibs/tai.h>
 #include <skalibs/stralloc.h>
 #include <skalibs/genalloc.h>
+#include <skalibs/iopause.h>
 #include <skalibs/ip46.h>
 #include <skalibs/random.h>
 
 #include <s6-dns/s6dns.h>
+#include <s6-dns/skadns.h>
 
 #include "qmailr.h"
 #include "qmail-smtpc.h"
+
+typedef struct cnameinfo_s cnameinfo, *cnameinfo_ref ;
+struct cnameinfo_s
+{
+  stralloc sa ;
+  size_t atpos ;
+  uint16_t id ;
+  uint16_t count ;
+} ;
+
+typedef struct mxipinfo_s mxipinfo, mxipinfo_ref ;
+struct mxipinfo_s
+{
+  stralloc ip4 ;
+  stralloc ip6 ;
+  uint16_t id4 ;
+  uint16_t id6 ;
+} ;
+#define MXIPINFO_ZERO { .ip4 = STRALLOC_ZERO, .ip6 = STRALLOC_ZERO, .id4 = UINT16_MAX, .id6 = UINT16_MAX }
 
 static int mx_cmp (void const *a, void const *b)
 {
@@ -21,157 +45,271 @@ static int mx_cmp (void const *a, void const *b)
   return aa->preference < bb-> preference ? -1 : aa->preference > bb->preference ;
 }
 
-void dns_init (void)
+static unsigned int use_host_as_mx (skadns_t *a, char const *host, genalloc *mxip, tain const *deadline)
 {
-  if (!s6dns_init_options(0)) qmailr_tempsys("Unable to init DNS") ;
+  unsigned int newreqs = 0 ;
+  mxipinfo info = MXIPINFO_ZERO ;
+  s6dns_domain_t q ;
+  if (!s6dns_domain_fromstring_noqualify_encode(&q, host, strlen(host)))
+    qmailr_tempsys("Unable to DNS-encode host domain") ;
+  if (!skadns_send_g(a, &info.id4, &q, S6DNS_T_A, deadline, deadline))
+    qmailr_tempsys("Unable to send A DNS query") ;
+  newreqs++ ;
+#ifdef SKALIBS_IPV6_ENABLED
+  if (!skadns_send_g(a, &info.id6, &q, S6DNS_T_AAAA, deadline, deadline))
+    qmailr_tempsys("Unable to send AAAA DNS query") ;
+  newreqs++ ;
+#endif
+  if (!genalloc_catb(mxipinfo, mxip, &info, 1)) dienomem() ;
+  return newreqs ;
 }
 
-void dns_canon (char const *host, char const *const *recip, unsigned int n, size_t *recippos, genalloc *mxpos, stralloc *storage)
+ /*
+   The point of this monster here is to do all the DNS resolutions in parallel,
+   to avoid compounding network latency. One of the many things that could never
+   be done by patching qmail-remote.
+   1 sender + n-1 recipients are given in eaddr.
+   - loop around CNAME until we get the canonical name, for the n eaddrs
+   - either lookup the MX for the host then find all the A and AAAAs of all the MXes,
+     or get the A and AAAAs of the host directly (if smtproutes)
+   - do not keep the As and AAAAs listed in ipme
+   - sort the set of IPs by MX preference
+   When done, quote all the boxnames in eaddr.
+   Shove everything in storage and return the indices:
+   in eaddrpos for sender+recipients, in mxipind for the IPs to connect to.
+
+   Also, fuck DNS for requiring so many small allocations and data copies.
+
+   Also, fuck DNS.
+ */
+
+void dns_stuff (char const *host, char const *const *eaddr, unsigned int n, size_t *eaddrpos, genalloc *mxipind, stralloc *storage, unsigned int timeoutdns, char const *ipme4, unsigned int n4, char const *ipme6, unsigned int n6, uint32_t flags)
 {
-  genalloc mx = GENALLOC_ZERO ;  /* s6dns_message_rr_mx_t */
-  size_t atpos[n] ;
-  s6dns_dpag_t cnames[n] ;
-  s6dns_resolve_t info[n + !!mxpos] ;
+  skadns_t a = SKADNS_ZERO ;
+  genalloc mxipi = GENALLOC_ZERO ;  /* mxipinfo */
+  tain deadline ;
+  unsigned int pending = 0 ;
+  uint16_t mxn = 0 ;
+  uint16_t mxid = UINT16_MAX ;
+  cnameinfo cnames[n] ;
+
+  tain_addsec_g(&deadline, timeoutdns) ;
+  if (!skadns_startf_g(&a, &deadline))
+    qmailr_tempsys("Unable to start asynchronous DNS helper") ;
 
   for (unsigned int i = 0 ; i < n ; i++)
   {
-    char const *at = strrchr(recip[i], '@') ;
-    if (!at) qmailr_perm("Invalid recipient") ;
-    atpos[i] = at - recip[i] ;
-    if (!s6dns_domain_fromstring_noqualify_encode(&info[i].q, at+1, strlen(at+1)))
-      qmailr_tempsys("Unable to DNS-encode recipient domain") ;
-    cnames[i].ds = genalloc_zero ;
-    cnames[i].rtype = S6DNS_T_CNAME ;
-    info[i].qtype = S6DNS_T_CNAME ;
-    info[i].options = S6DNS_O_RECURSIVE ;
-    info[i].deadline = tain_infinite ;
-    info[i].parsefunc = &s6dns_message_parse_answer_domain ;
-    info[i].data = cnames + i ;
-  }
-  if (!s6dns_domain_fromstring_noqualify_encode(&info[n].q, host, strlen(host)))
-    qmailr_tempsys("Unable to DNS-encode recipient domain") ;
-
-  if (mxpos)
-  {
-    info[n].qtype = S6DNS_T_MX ;
-    info[n].options = S6DNS_O_RECURSIVE ;
-    info[n].deadline = tain_infinite ;
-    info[n].parsefunc = &s6dns_message_parse_answer_mx ;
-    info[n].data = &mx ;
-  }
-
-  if (!s6dns_resolven_parse_g(info, n + !!mxpos, 0))
-    qmailr_tempsys("Unable to perform DNS resolutions") ;
-
-  for (unsigned int i = 0 ; i < n ; i++)
-  {
-    recippos[i] = storage->len ;
-    // TODO: box_encode(recip[i], atpos[i], storage) ;
-    if (!stralloc_catb(storage, "@", 1)) dienomem() ;
-    if (!info[i].status && genalloc_len(s6dns_domain_t, &cnames[i].ds))
+    char const *at = strrchr(eaddr[i], '@') ;
+    cnames[i].sa = stralloc_zero ;
+    if (at)
     {
-      if (!s6dns_domain_decode(genalloc_s(s6dns_domain_t, &cnames[i].ds)))
-        qmailr_tempsys("Unable to parse CNAME") ;
-      if (!stralloc_readyplus(storage, 256)) dienomem() ;
-      recippos[i] = storage->len ;
-      storage->len += s6dns_domain_tostring(storage->s + storage->len, 255, genalloc_s(s6dns_domain_t, &cnames[i].ds)) ;
-      if (storage->s[storage->len-1] == '.') --storage->len ;
-      storage->s[storage->len++] = 0 ;
+      s6dns_domain_t q ;
+      size_t len = strlen(at+1) ;
+      cnames[i].atpos = at - eaddr[i] ;
+      if (!stralloc_catb(&cnames[i].sa, at+1, len)) dienomem() ;
+      if (!s6dns_domain_fromstring_noqualify_encode(&q, at+1, len))
+        qmailr_tempsys("Unable to DNS-encode recipient domain") ;
+      if (!skadns_send_g(&a, &cnames[i].id, &q, S6DNS_T_CNAME, &deadline, &deadline))
+        qmailr_tempsys("Unable to send CNAME DNS query") ;
+      cnames[i].count = 1 ;
+      pending++ ;
     }
-    else if (!stralloc_cats(storage, recip[i] + atpos[i] + 1)) dienomem() ;
+    else
+    {
+      cnames[i].id = UINT16_MAX ;
+      cnames[i].count = 0 ;
+      cnames[i].atpos = strlen(eaddr[i]) ;
+    }
+  }
+
+  if (flags & 1)
+  {
+    s6dns_domain_t q ;
+    if (!s6dns_domain_fromstring_noqualify_encode(&q, host, strlen(host)))
+      qmailr_tempsys("Unable to DNS-encode host domain") ;
+    if (!skadns_send_g(&a, &mxid, &q, S6DNS_T_MX, &deadline, &deadline))
+      qmailr_tempsys("Unable to send MX DNS query") ;
+    pending++ ;
+  }
+  else
+  {
+    mxn = 1 ;
+    pending += use_host_as_mx(&a, host, &mxipi, &deadline) ;
+  }
+
+  while (pending)
+  {
+    uint16_t *ids ;
+    iopause_fd x = { .fd = skadns_fd(&a), .events = IOPAUSE_READ } ;
+    int r = iopause_g(&x, 1, &deadline) ;
+    if (r == -1) qmailr_tempsys("Unable to iopause") ;
+    if (!r) qmailr_tempsys("Timed out waiting for DNS") ;
+    r = skadns_update(&a) ;
+    if (r == -1) qmailr_tempsys("Unable to read DNS answers") ;
+    ids = genalloc_s(uint16_t, &a.list) ;
+    for (size_t j = 0 ; j < genalloc_len(uint16_t, &a.list) ; j++)
+    {
+      char const *packet = skadns_packet(&a, ids[j]) ;
+      uint16_t packetlen = skadns_packetlen(&a, ids[j]) ;
+      if (!packet) qmailr_tempsys("DNS packet reading error") ;
+
+      if (ids[j] == mxid)  /* return from MX query */
+      {
+        s6dns_message_header_t h ;
+        genalloc mxes = GENALLOC_ZERO ;  /* s6dns_message_rr_mx_t */
+        r = s6dns_message_parse(&h, packet, packetlen, &s6dns_message_parse_answer_mx, &mxes) ;
+        if (r == -1) qmailr_tempsys("DNS packet parsing error") ;
+        if (!r)
+        {
+          if (errno == EBUSY || errno == EIO) qmailr_temp("Temporary DNS error while resolving MX") ;
+          else qmailr_perm("DNS CNAME resolution error") ;
+        }
+        skadns_release(&a, ids[j]) ;
+        pending-- ;
+        mxid = UINT16_MAX ;
+        if (r >= 2)  /* we have MXes, ask for their IPs */
+        {
+          s6dns_message_rr_mx_t *mxs = genalloc_s(s6dns_message_rr_mx_t, &mxes) ;
+          mxn = genalloc_len(s6dns_message_rr_mx_t, &mxes) ;
+          if (!genalloc_readyplus(mxipinfo, &mxipi, mxn)) dienomem() ;
+          qsort(mxs, mxn, sizeof(s6dns_message_rr_mx_t), &mx_cmp) ;
+          for (unsigned int i = 0 ; i < mxn ; i++)
+          {
+            mxipinfo *p = genalloc_s(mxipinfo, &mxipi) + i ;
+            p->ip4 = p->ip6 = stralloc_zero ;
+            if (!skadns_send_g(&a, &p->id4, &mxs[i].exchange, S6DNS_T_A, &deadline, &deadline))
+              qmailr_tempsys("Unable to send A DNS query") ;
+            pending++ ;
+#ifdef SKALIBS_IPV6_ENABLED
+            if (!skadns_send_g(&a, &p->id6, &mxs[i].exchange, S6DNS_T_AAAA, &deadline, &deadline))
+              qmailr_tempsys("Unable to send AAAA DNS query") ;
+            pending++ ;
+#endif
+          }
+          genalloc_free(s6dns_message_rr_mx_t, &mxes) ;
+        }
+        else
+        {
+          mxn = 1 ;
+          pending += use_host_as_mx(&a, host, &mxipi, &deadline) ;
+        }
+        continue ;
+      }
+
+      for (unsigned int i = 0 ; i < n ; i++) if (ids[j] == cnames[i].id)  /* return from CNAME query */
+      {
+        s6dns_message_header_t h ;
+        s6dns_dpag_t dlist = { .ds = GENALLOC_ZERO, .rtype = S6DNS_T_CNAME } ;
+        r = s6dns_message_parse(&h, packet, packetlen, &s6dns_message_parse_answer_domain, &dlist) ;
+        if (r == -1) qmailr_tempsys("DNS packet parsing error") ;
+        if (!r)
+        {
+          if (errno == EBUSY || errno == EIO) qmailr_temp("Temporary DNS error while resolving CNAME") ;
+          else qmailr_perm("DNS CNAME resolution error") ;
+        }
+        skadns_release(&a, ids[j]) ;
+        pending-- ;
+        if (r >= 2)  /* it's a CNAME, loop on it */
+        {
+          s6dns_domain_t *domain = genalloc_s(s6dns_domain_t, &dlist.ds) ;
+          if (cnames[i].count++ >= 100) qmailr_temp("DNS CNAME loop") ;
+          if (!skadns_send_g(&a, &cnames[i].id, domain, S6DNS_T_CNAME, &deadline, &deadline))
+            qmailr_tempsys("Unable to send CNAME DNS query") ;
+          pending++ ;
+          if (!stralloc_ready(&cnames[i].sa, 256)) dienomem() ;
+          s6dns_domain_decode(domain) ;
+          cnames[i].sa.len = s6dns_domain_tostring(cnames[i].sa.s, 256, domain) ;
+          genalloc_free(s6dns_domain_t, &dlist.ds) ;
+        }
+        else cnames[i].id = UINT16_MAX ;  /* that's the canonical host in cnames[i].sa */
+        continue ;
+      }
+
+      for (unsigned int i = 0 ; i < mxn ; i++)
+      {
+        mxipinfo *p = genalloc_s(mxipinfo, &mxipi) + i ;
+        if (ids[j] == p->id4)
+        {
+          s6dns_message_header_t h ;
+          r = s6dns_message_parse(&h, packet, packetlen, &s6dns_message_parse_answer_a, &p->ip4) ;
+          if (r == -1) qmailr_tempsys("DNS packet parsing error") ;
+          if (!r)
+          {
+            if (errno == EBUSY || errno == EIO) qmailr_temp("Temporary DNS error while resolving A") ;
+            else qmailr_perm("DNS A resolution error") ;
+          }
+          skadns_release(&a, ids[j]) ;
+          pending-- ;
+          p->id4 = UINT16_MAX ;
+          for (unsigned int k = 0 ; k < p->ip4.len ; k += 4)
+          {
+            if (bsearch(p->ip4.s + k, ipme4, n4, 4, &qmailr_memcmp4))
+            {
+              memmove(p->ip4.s + k, p->ip4.s + p->ip4.len - 4, 4) ;
+              p->ip4.len -= 4 ;
+              k -= 4 ;
+            }
+          }
+        }
+#ifdef SKALIBS_IPV6_ENABLED
+        else if (ids[j] == p->id6)
+        {
+          s6dns_message_header_t h ;
+          r = s6dns_message_parse(&h, packet, packetlen, &s6dns_message_parse_answer_aaaa, &p->ip6) ;
+          if (r == -1) qmailr_tempsys("DNS packet parsing error") ;
+          if (!r)
+          {
+            if (errno == EBUSY || errno == EIO) qmailr_temp("Temporary DNS error while resolving AAAA") ;
+            else qmailr_perm("DNS AAAA resolution error") ;
+          }
+          skadns_release(&a, ids[j]) ;
+          pending-- ;
+          p->id6 = UINT16_MAX ;
+          for (unsigned int k = 0 ; k < p->ip6.len ; k += 16)
+          {
+            if (bsearch(p->ip6.s + k, ipme6, n6, 16, &qmailr_memcmp16))
+            {
+              memmove(p->ip6.s + k, p->ip6.s + p->ip6.len - 16, 16) ;
+              p->ip6.len -= 16 ;
+              k -= 16 ;
+            }
+          }
+        }
+#endif
+      }
+    }
+  }
+  skadns_end(&a) ;  /* we done buddy */
+
+  for (unsigned int i = 0 ; i < n ; i++)
+  {
+    eaddrpos[i] = storage->len ;
+    if (!qmailr_box_encode(eaddr[i], cnames[i].atpos, storage)) dienomem() ;
+    if (cnames[i].count)
+    {
+      if (!stralloc_catb(storage, "@", 1)) dienomem() ;
+      if (!stralloc_catb(storage, cnames[i].sa.s, cnames[i].sa.len)) dienomem() ;
+      stralloc_free(&cnames[i].sa) ;
+    }
     if (!stralloc_0(storage)) dienomem() ;
   }
 
-  if (mxpos && !info[n].status && genalloc_len(s6dns_message_rr_mx_t, &mx))
+  if (!genalloc_readyplus(mxip, mxipind, mxn)) dienomem() ;
+  for (unsigned int i = 0 ; i < mxn ; i++)
   {
-    s6dns_message_rr_mx_t *mxs = genalloc_s(s6dns_message_rr_mx_t, &mx) ;
-    size_t mxlen = genalloc_len(s6dns_message_rr_mx_t, &mx) ;
-    qsort(mxs, mxlen, sizeof(s6dns_message_rr_mx_t), &mx_cmp) ;
-    if (!genalloc_readyplus(size_t, mxpos, mxlen)) dienomem() ;
-    for (size_t i = 0 ; i < mxlen ; i++)
-    {
-      if (!s6dns_domain_decode(&mxs[i].exchange)) qmailr_tempsys("Unable to parse MX record") ;
-      if (!stralloc_readyplus(storage, 256)) dienomem() ;
-      genalloc_catb(size_t, mxpos, storage->len, 1) ;
-      storage->len += s6dns_domain_tostring(storage->s + storage->len, 255, &mxs[i].exchange) ;
-      storage->s[storage->len++] = 0 ;
-    }
-    genalloc_free(s6dns_message_rr_mx_t, &mx) ;
-  }
-}
-
-void dns_ip_of_mx (size_t const *pos, unsigned int n, mxip *tab, stralloc *storage, char const *ipme4, unsigned int n4, char const *ipme6, unsigned int n6)
-{
+    mxip data ;
+    mxipinfo *p = genalloc_s(mxipinfo, &mxipi) + i ;
+    data.n4 = p->ip4.len >> 2 ;
+    data.pos4 = storage->len ;
+    if (!stralloc_catb(storage, p->ip4.s, p->ip4.len)) dienomem() ;
+    stralloc_free(&p->ip4) ;
 #ifdef SKALIBS_IPV6_ENABLED
-  unsigned int const N = n << 1 ;
-  stralloc ip6[n] ;
-#else
-  unsigned int const N = n ;
-#endif
-  stralloc ip4[n] ;
-  s6dns_resolve_t info[N] ;
-  for (unsigned int i = 0 ; i < n ; i++)
-  {
-    if (!s6dns_domain_fromstring_noqualify_encode(&info[i].q, storage->s + pos[i], strlen(storage->s + pos[i])))
-      qmailr_tempsys("Unable to DNS-encode MX") ;
-    ip4[i] = stralloc_zero ;
-    info[i].qtype = S6DNS_T_A ;
-    info[i].options = S6DNS_O_RECURSIVE ;
-    info[i].deadline = tain_infinite ;
-    info[i].parsefunc = &s6dns_message_parse_answer_a ;
-    info[i].data = ip4 + i ;
-
-#ifdef SKALIBS_IPV6_ENABLED
-    ip6[i] = stralloc_zero ;
-    info[n+i].q = info[i].q ;
-    info[n+i].qtype = S6DNS_T_A ;
-    info[n+i].options = S6DNS_O_RECURSIVE ;
-    info[n+i].deadline = tain_infinite ;
-    info[n+i].parsefunc = &s6dns_message_parse_answer_aaaa ;
-    info[n+i].data = ip6 + i ;
+    data.n6 = p->ip6.len >> 4 ;
+    data.pos6 = storage->len ;
+    if (!stralloc_catb(storage, p->ip6.s, p->ip6.len)) dienomem() ;
+    stralloc_free(&p->ip6) ;
+    genalloc_catb(mxip, mxipind, &data, 1) ;
 #endif
   }
-
-  if (!s6dns_resolven_parse_g(info, N, 0))
-    qmailr_tempsys("Unable to perform DNS resolutions") ;
-
-  for (unsigned int i = 0 ; i < n ; i++)
-  {
-    if (!info[i].status)
-    {
-      for (unsigned int j = 0 ; j < ip4[i].len ; j += 4)
-      {
-        if (bsearch(ip4[i].s + j, ipme4, n4, 4, &qmailr_memcmp4))
-        {
-          memmove(ip4[i].s + j, ip4[i].s + ip4[i].len - 4, 4) ;
-          ip4[i].len -= 4 ;
-        }
-      }
-      random_unsort(ip4[i].s, ip4[i].len >> 2, 4) ;
-      tab[i].pos4 = storage->len ;
-      tab[i].n4 = ip4[i].len >> 2 ;
-      if (!stralloc_catb(storage, ip4[i].s, ip4[i].len)) dienomem() ;
-      stralloc_free(ip4 + i) ;
-    }
-
-#ifdef SKALIBS_IPV6_ENABLED
-    if (!info[n+i].status)
-    {
-      for (unsigned int j = 0 ; j < ip6[i].len ; j += 16)
-      {
-        if (bsearch(ip6[i].s + j, ipme6, n6, 16, &qmailr_memcmp16))
-        {
-          memmove(ip6[i].s + j, ip6[i].s + ip6[i].len - 16, 16) ;
-          ip6[i].len -= 16 ;
-        }
-      }
-      random_unsort(ip6[i].s, ip6[i].len >> 4, 16) ;
-      tab[i].pos6 = storage->len ;
-      tab[i].n6 = ip6[i].len >> 4 ;
-      if (!stralloc_catb(storage, ip6[i].s, ip6[i].len)) dienomem() ;
-      stralloc_free(ip6 + i) ;
-    }
-#endif
-
-  }
+  genalloc_free(mxipinfo, &mxipi) ;
 }

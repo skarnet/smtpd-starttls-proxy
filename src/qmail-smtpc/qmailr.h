@@ -30,6 +30,7 @@ extern void qmailr_diesys (char const *) gccattr_noreturn ;
 
 extern int qmailr_memcmp4 (void const *, void const *) ;
 extern int qmailr_memcmp16 (void const *, void const *) ;
+extern int qmailr_box_encode (char const *, size_t, stralloc *) ;
 
 
 /* qmailr_tcpto */
@@ -53,6 +54,7 @@ struct qmailr_tls_s
   size_t tapos ;
   size_t certpos ;
   size_t keypos ;
+  uint8_t strictness : 2 ;
   uint8_t flagtls : 1 ;
   uint8_t flagtadir : 1 ;
   uint8_t flagclientcert : 1 ;

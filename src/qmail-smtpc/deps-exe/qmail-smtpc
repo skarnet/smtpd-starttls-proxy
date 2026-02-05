@@ -1,5 +1,6 @@
 dns.o
 smtproutes.o
 libqmailr.a.xyzzy
+-lskadns
 -ls6dns
 -lskarnet

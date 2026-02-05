@@ -25,7 +25,7 @@ int main (int argc, char const *const *argv)
   smtproutes routes = SMTPROUTES_ZERO ;
   unsigned int timeoutconnect = 60, timeoutremote = 1200 ;
   char const *host ;
-  size_t mepos, helopos, hostpos = 0, senderpos ;
+  size_t mepos, helopos, hostpos = 0 ;
   uint16_t port = 25 ;
   int r ;
 
@@ -35,7 +35,7 @@ int main (int argc, char const *const *argv)
   if (sig_altignore(SIGPIPE) == -1) qmailr_tempsys("Unable to ignore SIGPIPE") ;
   host = *argv++ ; argc-- ;
   tain_now_set_stopwatch_g() ;
-  dns_init() ;
+
 
  /* init control */
 
@@ -74,20 +74,11 @@ int main (int argc, char const *const *argv)
     smtproutes_free(&routes) ;
   }
 
-  // TODO: box_encode(&senderpos) ;
-
   {
-    genalloc mxpos = GENALLOC_ZERO ;
-    int usehost ;
-    size_t recippos[argc] ;
+    genalloc mxipind = GENALLOC_ZERO ;
+    size_t eaddrpos[argc] ;
+    dns_stuff(hostpos ? storage.s + hostpos : host, argv, argc, eaddrpos, &mxipind, &storage, timeoutconnect, ipme4.s, ipme4.len >> 2, ipme6.s, ipme6.len >> 4, !hostpos) ;
 
-    dns_canon(host, argv, argc, recippos, hostpos ? 0 : &mxpos, &storage) ;
-    usehost = hostpos || !genalloc_len(size_t, &mxpos) ;
-
-    unsigned int mxn = usehost ? 1 : genalloc_len(size_t, &mxpos) ;
-    mxip mxind[mxn] ;
-    dns_ip_of_mx(usehost ? &hostpos : genalloc_s(size_t, &mxpos), mxn, mxind, &storage, ipme4.s, ipme4.len >> 2, ipme6.s, ipme6.len >> 4) ;
-    genalloc_free(size_t, &mxpos) ;
   }
 
 
