@@ -1,7 +1,7 @@
 /* ISC license. */
 
-#ifndef QMAIL_SMTPC_H
-#define QMAIL_SMTPC_H
+#ifndef QMAIL_REMOTE_H
+#define QMAIL_REMOTE_H
 
 #include <stddef.h>
 #include <stdint.h>

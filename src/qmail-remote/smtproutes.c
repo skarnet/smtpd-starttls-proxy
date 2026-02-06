@@ -21,7 +21,7 @@
 
 #include <smtpd-starttls-proxy/config.h>
 #include "qmailr.h"
-#include "qmail-smtpc.h"
+#include "qmail-remote.h"
 
 
 /*

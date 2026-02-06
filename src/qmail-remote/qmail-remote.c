@@ -12,7 +12,7 @@
 
 #include <smtpd-starttls-proxy/config.h>
 #include "qmailr.h"
-#include "qmail-smtpc.h"
+#include "qmail-remote.h"
 
 #define dieusage() qmailr_perm("qmail-remote was invoked improperly")
 

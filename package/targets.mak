@@ -1,6 +1,6 @@
 BIN_TARGETS := \
 smtpd-starttls-proxy-io \
-qmail-smtpc
+qmail-remote
 
 LIBEXEC_TARGETS :=
 

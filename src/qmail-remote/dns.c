@@ -17,7 +17,7 @@
 #include <s6-dns/skadns.h>
 
 #include "qmailr.h"
-#include "qmail-smtpc.h"
+#include "qmail-remote.h"
 
 typedef struct cnameinfo_s cnameinfo, *cnameinfo_ref ;
 struct cnameinfo_s
