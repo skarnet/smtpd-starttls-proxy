@@ -1,2 +1,3 @@
 smtpd-starttls-proxy-io	0755
 qmail-remote		0755
+qmail-remote-io		0755

@@ -19,7 +19,7 @@ int qmailr_tls_init (qmailr_tls *qt, stralloc *sa)
   if (r)
   {
     unsigned int strictness = 0 ;
-    tmp.flagtls = 1 ;
+    tmp.flagwanttls = 1 ;
     if (sa->s[sa->len - 2] == '/')
     {
       sa->s[--sa->len - 1] = 0 ;

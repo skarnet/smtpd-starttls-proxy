@@ -4,9 +4,11 @@
 
 src/qmail-remote/qmail-remote.h: src/qmail-remote/qmailr.h
 src/qmail-remote/dns.o src/qmail-remote/dns.lo: src/qmail-remote/dns.c src/qmail-remote/qmail-remote.h src/qmail-remote/qmailr.h
+src/qmail-remote/qmail-remote-io.o src/qmail-remote/qmail-remote-io.lo: src/qmail-remote/qmail-remote-io.c src/qmail-remote/qmailr.h
 src/qmail-remote/qmail-remote.o src/qmail-remote/qmail-remote.lo: src/qmail-remote/qmail-remote.c src/qmail-remote/qmail-remote.h src/qmail-remote/qmailr.h src/include/smtpd-starttls-proxy/config.h
 src/qmail-remote/qmailr_control.o src/qmail-remote/qmailr_control.lo: src/qmail-remote/qmailr_control.c src/qmail-remote/qmailr.h
 src/qmail-remote/qmailr_error.o src/qmail-remote/qmailr_error.lo: src/qmail-remote/qmailr_error.c src/include/smtpd-starttls-proxy/config.h
+src/qmail-remote/qmailr_smtp.o src/qmail-remote/qmailr_smtp.lo: src/qmail-remote/qmailr_smtp.c src/qmail-remote/qmailr.h
 src/qmail-remote/qmailr_tcpto.o src/qmail-remote/qmailr_tcpto.lo: src/qmail-remote/qmailr_tcpto.c src/qmail-remote/qmailr.h src/include/smtpd-starttls-proxy/config.h
 src/qmail-remote/qmailr_tls.o src/qmail-remote/qmailr_tls.lo: src/qmail-remote/qmailr_tls.c src/qmail-remote/qmailr.h src/include/smtpd-starttls-proxy/config.h
 src/qmail-remote/qmailr_utils.o src/qmail-remote/qmailr_utils.lo: src/qmail-remote/qmailr_utils.c src/qmail-remote/qmailr.h
@@ -14,12 +16,14 @@ src/qmail-remote/smtproutes.o src/qmail-remote/smtproutes.lo: src/qmail-remote/s
 src/smtpd-starttls-proxy/smtpd-starttls-proxy-io.o src/smtpd-starttls-proxy/smtpd-starttls-proxy-io.lo: src/smtpd-starttls-proxy/smtpd-starttls-proxy-io.c
 
 ifeq ($(strip $(STATIC_LIBS_ARE_PIC)),)
-libqmailr.a.xyzzy: src/qmail-remote/qmailr_control.o src/qmail-remote/qmailr_error.o src/qmail-remote/qmailr_tcpto.o src/qmail-remote/qmailr_tls.o src/qmail-remote/qmailr_utils.o
+libqmailr.a.xyzzy: src/qmail-remote/qmailr_control.o src/qmail-remote/qmailr_error.o src/qmail-remote/qmailr_smtp.o src/qmail-remote/qmailr_tcpto.o src/qmail-remote/qmailr_tls.o src/qmail-remote/qmailr_utils.o
 else
-libqmailr.a.xyzzy:src/qmail-remote/qmailr_control.lo src/qmail-remote/qmailr_error.lo src/qmail-remote/qmailr_tcpto.lo src/qmail-remote/qmailr_tls.lo src/qmail-remote/qmailr_utils.lo
+libqmailr.a.xyzzy:src/qmail-remote/qmailr_control.lo src/qmail-remote/qmailr_error.lo src/qmail-remote/qmailr_smtp.lo src/qmail-remote/qmailr_tcpto.lo src/qmail-remote/qmailr_tls.lo src/qmail-remote/qmailr_utils.lo
 endif
 qmail-remote: EXTRA_LIBS :=
 qmail-remote: src/qmail-remote/qmail-remote.o src/qmail-remote/dns.o src/qmail-remote/smtproutes.o libqmailr.a.xyzzy -lskadns -ls6dns -lskarnet
+qmail-remote-io: EXTRA_LIBS :=
+qmail-remote-io: src/qmail-remote/qmail-remote-io.o libqmailr.a.xyzzy -lskarnet
 smtpd-starttls-proxy-io: EXTRA_LIBS := ${SOCKET_LIB} ${SYSCLOCK_LIB}
 smtpd-starttls-proxy-io: src/smtpd-starttls-proxy/smtpd-starttls-proxy-io.o -lskarnet
 INTERNAL_LIBS := libqmailr.a.xyzzy

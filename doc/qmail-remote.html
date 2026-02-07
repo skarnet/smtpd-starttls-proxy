@@ -1,0 +1,172 @@
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <meta http-equiv="Content-Language" content="en" />
+    <title>smtpd-starttls-proxy: the qmail-remote program</title>
+    <meta name="Description" content="smtpd-starttls-proxy: the qmail-remote program" />
+    <meta name="Keywords" content="smtp client qmail qmail-remote" />
+    <!-- <link rel="stylesheet" type="text/css" href="//skarnet.org/default.css" /> -->
+  </head>
+<body>
+
+<p>
+<a href="index.html">smtpd-starttls-proxy</a><br />
+<a href="//skarnet.org/software/">Software</a><br />
+<a href="//skarnet.org/">skarnet.org</a>
+</p>
+
+<h1> The <tt>qmail-remote</tt> program </h1>
+
+<p>
+<tt>qmail-remote</tt> is an SMTP client, meant to be used as a drop-in
+replacement to the
+<a href="http://qmail.org/man/man8/qmail-remote.html">qmail-remote</a>
+implementation in the original
+<a href="https://cr.yp.to/qmail.html">qmail</a> MTA, its
+<a href="https://netqmail.org/">netqmail</a> distribution, or its modern
+<a href="https://notqmail.org/">notqmail</a> successor.
+</p>
+
+<p>
+ It is not meant to be invoked directly by the user; it only makes sense
+in the context of a qmail, netqmail or notqmail installation.
+</p>
+
+<h2 id="interface"> Interface </h2>
+
+<p>
+ <tt>qmail-remote</tt> follows the exact same interface as the stock
+<a href="http://qmail.org/man/man8/qmail-remote.html">qmail-remote</a>.
+The binary can literally be dropped
+in <tt>/var/qmail/bin</tt>, replacing the previous binary by the same name.
+With certain qmail patches, it can also be used without overwriting anything,
+by running qmail with the QMAILREMOTE environment variable set to the path
+where this version of <tt>qmail-remote</tt> is installed.
+</p>
+
+<h2 id="differences"> Differences with other implementations of qmail-remote </h2>
+
+<p>
+ The main benefits of this <tt>qmail-remote</tt> implementations are the following:
+</p>
+
+<ul>
+ <li> If the underlying OS and <a href="//skarnet.org/software/skalibs/">skalibs</a>
+support IPv6, then this <tt>qmail-remote</tt> does as well, and uses IPv4 and IPv6
+addresses indiscriminately when connecting to an MX. </li>
+ <li> It speaks ESMTP and will use STARTTLS if the server supports it. </li>
+ <li> All its DNS resolutions are done in parallel, which eliminates some
+pathological cases where the original <tt>qmail-remote</tt> can hang around doing
+nothing for a <em>long</em> time. </li>
+</ul>
+
+<h2 id="control"> Control files </h2>
+
+<p>
+ <tt>qmail-remote</tt> uses the following control files in <tt>/var/qmail/control</tt>:
+<p>
+
+<dl>
+ <dt> <tt>me</tt>, <tt>helohost</tt>, <tt>smtproutes</tt>, <tt>timeoutconnect</tt>, <tt>timeoutremote</tt> </dt>
+ <dd> These files are used in the exact same way as in
+<a href="http://qmail.org/man/man8/qmail-remote.html">stock qmail-remote</a>. </dd>
+
+ <dt> <tt>timeoutdns</tt>
+ <dd> Number of seconds will wait for any given DNS resolution to succeed. Default:
+<strong>0</strong>, which means infinite (never time out on a resolution). </dd>
+
+ <dt> <tt>ipme</tt> </dt>
+ <dd> A list of the network IP addresses of the local machine, one per line. These can be
+IPv4 or IPv6, in textual format. These addresses are used to eliminate SMTP loops:
+<tt>qmail-remote</tt> will never connect to these addresses and never deliver mail
+to them. Note that the stock <tt>qmail-remote</tt> automatically detects the local
+IP addresses; this has several problems, one being OS portability, and another
+being that this autodetection is just impossible in IPv6 &mdash; so we
+delegate the listing of local IPs to the user here. Also, the best way to avoid
+SMTP loops remains making sure that your <tt>locals</tt> and <tt>virtualdomains</tt>
+files are correct and up-to-date, so that <tt>qmail-remote</tt> will never be
+invoked on a recipient that should be handled locally. </dd>
+
+ <dt> <tt>trustanchors</tt> </dt>
+ <dd> Contains the path to the certificates for known trust anchors for X.509
+certificate validation. If the path ends with a slash, like <tt>/etc/ssl/certs/</tt>,
+then it is interpreted as a directory containing hashes to the certificates. If
+it does not, like <tt>/etc/ssl/cert.pem</tt>, then it is interpreted as a big
+PEM file containing all the trust anchors. If the file is nonexistent or empty,
+or only contains a newline, then STARTTLS is not attempted. </dd>
+
+ <dt> <tt>clientcert</tt> </dt>
+ <dd> If this file exists and is nonempty, it must contain the path to a client
+certificate. This certificate will be sent to the server during a TLS negotiation.
+This is useful in certain setups requiring client authentication. </dd>
+
+ <dt> <tt>clientkey</tt> </dt>
+ <dd> This file must be used in conjunction with <tt>clientcert</tt>. It contains
+the path to the private key used to sign the client certificate. Note that access
+to the private key file should be as restricted as possible, but the <tt>qmailr</tt>
+user (or whatever user <tt>qmail-smtpc</tt> runs as) must be able to read it. </dd>
+
+ <dt> <tt>tlsstrictness</tt> </dt>
+ <dd> This file contains an integer representing the strictness level expected of
+TLS connections. The default is <strong>0</strong>, and means that an SMTP exchange
+will attempt to use STARTTLS if the <tt>trustanchors</tt> information is provided
+and the server advertises the capability, but will
+proceed in cleartext if the server does not advertise STARTTLS support, or if the
+STARTTLS command fails. <strong>1</strong> means that <tt>qmail-remote</tt> will
+attempt to find a server that supports STARTTLS in order to transmit its e-mail,
+but will fallback to cleartext if it cannot find any. <strong>2</strong> means that
+<tt>qmail-remote</tt> will flat out refuse to send e-mail to servers that do not
+support STARTTLS or fail to set it up. </dd>
+</dl>
+
+<h2 id="implementation"> Implementation notes </h2>
+
+<ul>
+ <li> At installation time, <tt>qmail-remote</tt> creates the
+<tt>/var/qmail/run</tt> directory, to host run-time information, and
+the <tt>/var/qmail/run/qmail-remote</tt> directory, writable by user
+<tt>qmailr</tt>. You can customize the qmail location and users at
+configure time. </li>
+ <li> At run-time, <tt>qmail-remote</tt> stores some information under
+<tt>/var/qmail/run/qmail-remote</tt>:
+  <ul>
+   <li> <tt>smtproutes.cdb</tt> is a cdb file containing the artificial
+SMTP routes, automatically compiled from <tt>/var/qmail/control/smtproutes</tt>
+whenever it changes. <tt>qmail-remote</tt> reads its route information
+from the cdb file. This is a more efficient mechanism than the original
+"constmap" one. </li>
+   <li> <tt>smtproutes.lock</tt>, a lock file used when reading and
+writing <tt>smtproutes.cdb</tt>. </li>
+   <li> <tt>tcpto6</tt>, a binary file hosting connection timeout information
+in a similar way to <tt>/var/qmail/queue/lock/tcpto</tt>, but for IPv6.
+<tt>qmail-remote</tt> reuses the same <tt>tcpto</tt> file as the original
+for IPv4 timeouts, and is still compatible with the
+<a href="http://qmail.org/man/man8/qmail-tcpto.html">qmail-tcpto</a>
+program; however, a new file was necessary for IPv6, and creating it
+under <tt>/var/qmail/queue/lock</tt> was tricky because the qmail queue
+has very precise permissions and it is better to leave it untouched.
+Since <tt>qmail-remote</tt> needed a new directory writable by <tt>qmailr</tt>
+to host its SMTP routes map anyway, storing the <tt>tcpto6</tt> files in the
+same place is a logical decision. </li>
+  </ul> </li>
+ <li> <tt>qmail-remote</tt> uses the
+<a href="https://skarnet.org/software/s6-dns/skadns/">skadns</a> library
+to perform DNS resolutions asynchronously. If you see a weird <tt>skadnsd</tt>
+process running as a child of <tt>qmail-remote</tt>, that's why. </li>
+ <li> The whole SMTP exchange can happen either over a TLS-encrypted connection
+after a STARTTLS command, or over a cleartext connection. To separate TLS
+management from the SMTP client and avoid duplication of code, the SMTP
+exchange is actually handled by a separate binary:
+<a href="qmail-remote-io.html">qmail-remote-io</a>. If your process list
+shows a <tt>qmail-remote-io</tt> process under <tt>qmail-rspawn</tt> instead
+of the regular <tt>qmail-remote</tt>, that is normal, it means that
+<tt>qmail-remote</tt> has found a suitable server and is transmitting its
+data. If there is a
+<a href="https://skarnet.org/software/s6-networking/s6-tlsc-io.html">s6-tlsc-io</a>
+process running as the child of <tt>qmail-remote-io</tt>, it means that the
+connection is happening under TLS. </li>
+</ul>
+
+</body>
+</html>

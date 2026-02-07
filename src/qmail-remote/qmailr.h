@@ -7,23 +7,30 @@
 #include <stdint.h>
 
 #include <skalibs/gccattributes.h>
+#include <skalibs/buffer.h>
 #include <skalibs/tai.h>
 #include <skalibs/stralloc.h>
 
 
 /* qmailr_error */
 
-extern void qmailr_diev (int, char const *const *, unsigned int) gccattr_noreturn ;
+extern void qmailr_warnv (char, char const *const *, unsigned int) gccattr_noreturn ;
+extern void qmailr_diev (char, char const *const *, unsigned int) gccattr_noreturn ;
 extern void qmailr_dievsys (char const *const *, unsigned int) gccattr_noreturn ;
-extern void qmailr_die (int, char const *) gccattr_noreturn ;
-extern void qmailr_diesys (char const *) gccattr_noreturn ;
 
-#define qmailr_temp(s) qmailr_die(0, (s))
-#define qmailr_tempv(v, n) qmailr_diev(0, (v), n)
-#define qmailr_tempsys(s) qmailr_diesys(s)
-#define qmailr_tempvsys(v, n) qmailr_dievsys(v, n)
-#define qmailr_perm(s) qmailr_die(1, (s))
-#define qmailr_permv(v, n) qmailr_diev(1, (v), n)
+#define qmailr_array(...) ((char const *const[]){__VA_ARGS__})
+#define qmailr_dien(e, n, ...) qmailr_diev(e, qmailr_array(__VA_ARGS__), (n))
+#define qmailr_diensys(n, ...) qmailr_dievsys(qmailr_array(__VA_ARGS__), (n))
+
+#define qmailr_die(c, ...) qmailr_dien(c, sizeof(qmailr_array(__VA_ARGS__))/sizeof(char const *), __VA_ARGS__)
+#define qmailr_diesys(...) qmailr_diensys(sizeof(qmailr_array(__VA_ARGS__))/sizeof(char const *), __VA_ARGS__)
+
+#define qmailr_temp(...) qmailr_die('Z', __VA_ARGS__)
+#define qmailr_tempsys(...) qmailr_diesys(__VA_ARGS__)
+#define qmailr_perm(...) qmailr_die(1, __VA_ARGS__)
+
+#define qmailr_tempu(...) qmailr_die('D', "Unable to ", __VA_ARGS__)
+#define qmailr_tempusys(...) qmailr_diesys("Unable to ", __VA_ARGS__)
 
 
 /* qmailr_utils */
@@ -46,6 +53,14 @@ extern int qmailr_control_readint (char const *file, unsigned int *, stralloc *)
 extern int qmailr_control_readiplist (char const *, stralloc *, stralloc *) ;
 
 
+ /* qmailr_smtp */
+
+extern int qmailr_smtp_read_line (buffer *, char *, size_t, unsigned int *, tain const *) ;
+extern int qmailr_smtp_read_answer (buffer *, char *, size_t, unsigned int) ;
+extern int qmailr_smtp_start (buffer *, buffer *, char const *, unsigned int) ;
+extern void qmailr_smtp_quit (buffer *b, unsigned int) ;
+
+
 /* qmailr_tls */
 
 typedef struct qmailr_tls_s qmailr_tls, *qmailr_tls_ref ;
@@ -55,7 +70,7 @@ struct qmailr_tls_s
   size_t certpos ;
   size_t keypos ;
   uint8_t strictness : 2 ;
-  uint8_t flagtls : 1 ;
+  uint8_t flagwanttls : 1 ;
   uint8_t flagtadir : 1 ;
   uint8_t flagclientcert : 1 ;
 } ;

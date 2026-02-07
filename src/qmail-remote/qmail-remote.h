@@ -12,7 +12,7 @@
 
 #include "qmailr.h"
 
-#define dienomem() qmailr_tempsys("Unable to grow stralloc")
+#define dienomem() qmailr_tempusys("stralloc_catb")
 
 
 /* dns */
@@ -27,7 +27,7 @@ struct mxip_s
 } ;
 #define MXIP_ZERO { 0 }
 
-extern void dns_stuff (char const *, char const *const *, unsigned int, size_t *, genalloc *, stralloc *, unsigned int, char const *, unsigned int, char const *, unsigned int, uint32_t) ;
+extern unsigned int dns_stuff (char const *, char const *const *, unsigned int, size_t *, genalloc *, stralloc *, unsigned int, char const *, unsigned int, char const *, unsigned int, uint32_t) ;
 
 
 /* smtproutes */

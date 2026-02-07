@@ -1,0 +1,53 @@
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <meta http-equiv="Content-Language" content="en" />
+    <title>smtpd-starttls-proxy: the qmail-remote-io internal program</title>
+    <meta name="Description" content="smtpd-starttls-proxy: the qmail-remote-io program" />
+    <meta name="Keywords" content="smtp client qmail qmail-remote" />
+    <!-- <link rel="stylesheet" type="text/css" href="//skarnet.org/default.css" /> -->
+  </head>
+<body>
+
+<p>
+<a href="index.html">smtpd-starttls-proxy</a><br />
+<a href="//skarnet.org/software/">Software</a><br />
+<a href="//skarnet.org/">skarnet.org</a>
+</p>
+
+<h1> The <tt>qmail-remote-io</tt> internal program </h1>
+
+<p>
+<tt>qmail-remote-io</tt> is a part of the SMTP client implemented by
+<a href="qmail-remote.html">qmail-remote</a>. It manages the entirety
+of the SMTP transaction except <tt>EHLO</tt> and <tt>STARTTLS</tt>.
+</p>
+
+<p>
+<tt>qmail-remote-io</tt> is not meant to be invoked directly. It is
+meant to be executed into by <a href="qmail-remote.html">qmail-remote</a>.
+</p>
+
+<h2 id="details"> Internal details </h2>
+
+<ul>
+ <li> <a href="qmail-remote.html">qmail-remote</a> does the job of finding a
+suitable SMTP server and connecting to it, saying <tt>EHLO</tt> and, if the user
+has defined a <tt>control/trustanchors</tt> file and the server supports it,
+<tt>STARTTLS</tt>. </li>
+ <li> If the connection is not encrypted,
+<a href="qmail-remote.html">qmail-remote</a> execs <tt>qmail-remote-io</tt>
+immediately, and <tt>qmail-remote-io</tt> proceeds with all the rest of the
+SMTP transaction. </li>
+ <li> If the connection is encrypted,
+<a href="qmail-remote.html">qmail-remote</a> execs
+<tt><a href="//skarnet.org/software/s6-networking/s6-tlsc.html">s6-tlsc</a>
+qmail-remote-io</tt>, instead, so any further exchange with the SMTP server
+is protected by TLS. </li>
+ <li> <tt>qmail-remote-io</tt> does the same job in either case: it speaks
+plaintext SMTP. </li>
+</ul>
+
+</body>
+</html>
