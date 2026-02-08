@@ -28,15 +28,18 @@
 
 #define dieusage() qmailr_perm("qmail-remote was invoked improperly")
 
-static inline void exec_tls (int fd, char const *fmtip, unsigned int timeoutconnect, unsigned int timeoutremote, qmailr_tls const *qtls, size_t helopos, size_t const *eaddrpos, unsigned int n, char const *storage) gccattr_noreturn ;
-static inline void exec_tls (int fd, char const *fmtip, unsigned int timeoutconnect, unsigned int timeoutremote, qmailr_tls const *qtls, size_t helopos, size_t const *eaddrpos, unsigned int n, char const *storage)
+static inline void exec_tls (int fdr, char const *fmtip, unsigned int timeoutconnect, unsigned int timeoutremote, qmailr_tls const *qtls, size_t helopos, size_t const *eaddrpos, unsigned int n, char const *storage) gccattr_noreturn ;
+static inline void exec_tls (int fdr, char const *fmtip, unsigned int timeoutconnect, unsigned int timeoutremote, qmailr_tls const *qtls, size_t helopos, size_t const *eaddrpos, unsigned int n, char const *storage)
 {
+  int fdw = dup(fdr) ;
   unsigned int m = 0 ;
-  char fmtfd[UINT_FMT] ;
+  char fmtr[UINT_FMT] ;
+  char fmtw[UINT_FMT] ;
   char fmtt[UINT_FMT] ;
   char fmtk[UINT_FMT] ;
   char const *argv[20 + n] ;
 
+  if (fdw == -1) qmailr_tempusys("duplicate file descriptor") ;
   if (!env_mexec("TLS_UID", 0) || !env_mexec("TLS_GID", 0)
    || !env_mexec(qtls->flagtadir ? "CADIR" : "CAFILE", storage + qtls->tapos)) dienomem() ;
   if (qtls->flagclientcert)
@@ -54,7 +57,8 @@ static inline void exec_tls (int fd, char const *fmtip, unsigned int timeoutconn
     }
   }
 
-  fmtfd[uint_fmt(fmtfd, (unsigned int)fd)] = 0 ;
+  fmtr[uint_fmt(fmtr, (unsigned int)fdr)] = 0 ;
+  fmtw[uint_fmt(fmtw, (unsigned int)fdw)] = 0 ;
   fmtt[uint_fmt(fmtt, timeoutremote)] = 0 ;
   fmtk[uint_fmt(fmtk, timeoutconnect > UINT_MAX/1000 ? UINT_MAX : timeoutconnect * 1000)] = 0 ;
 
@@ -63,18 +67,18 @@ static inline void exec_tls (int fd, char const *fmtip, unsigned int timeoutconn
   argv[m++] = "-K" ;
   argv[m++] = fmtk ;
   argv[m++] = "-6" ;
-  argv[m++] = fmtfd ;
+  argv[m++] = fmtr ;
   argv[m++] = "-7" ;
-  argv[m++] = fmtfd ;
+  argv[m++] = fmtw ;
   argv[m++] = "--" ;
 
   argv[m++] = SMTPD_STARTTLS_PROXY_LIBEXECPREFIX "qmail-remote-io" ;
   argv[m++] = "-t" ;
   argv[m++] = fmtt ;
   argv[m++] = "-6" ;
-  argv[m++] = fmtfd ;
+  argv[m++] = fmtr ;
   argv[m++] = "-7" ;
-  argv[m++] = fmtfd ;
+  argv[m++] = fmtw ;
   argv[m++] = "--" ;
   argv[m++] = fmtip ;
   argv[m++] = storage + helopos ;
