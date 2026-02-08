@@ -55,7 +55,7 @@ where this version of <tt>qmail-remote</tt> is installed.
  <li> If the underlying OS and <a href="//skarnet.org/software/skalibs/">skalibs</a>
 support IPv6, then this <tt>qmail-remote</tt> does as well, and uses IPv4 and IPv6
 addresses indiscriminately when connecting to an MX. </li>
- <li> It speaks ESMTP and will use STARTTLS if the server supports it. </li>
+ <li> It will use STARTTLS if the server supports it. </li>
  <li> All its DNS resolutions are done in parallel, which eliminates some
 pathological cases where the original <tt>qmail-remote</tt> can hang around doing
 nothing for a <em>long</em> time. </li>
@@ -105,7 +105,7 @@ This is useful in certain setups requiring client authentication. </dd>
  <dd> This file must be used in conjunction with <tt>clientcert</tt>. It contains
 the path to the private key used to sign the client certificate. Note that access
 to the private key file should be as restricted as possible, but the <tt>qmailr</tt>
-user (or whatever user <tt>qmail-smtpc</tt> runs as) must be able to read it. </dd>
+user (or whatever user <tt>qmail-remote</tt> runs as) must be able to read it. </dd>
 
  <dt> <tt>tlsstrictness</tt> </dt>
  <dd> This file contains an integer representing the strictness level expected of

@@ -122,8 +122,8 @@ static void blast (buffer *out, unsigned int timeout)
   if (buffer_putflush(out, ".\r\n", 3) < 0) qmailr_tempsys("qmail-remote-io: ", "unable to ", "finalize message data") ;
 }
 
-static void smtp_body (buffer *in, buffer *out, char const *fmtip, char const *sender, char const *const *recip, unsigned int n, unsigned int timeout) gccattr_noreturn ;
-static void smtp_body (buffer *in, buffer *out, char const *fmtip, char const *sender, char const *const *recip, unsigned int n, unsigned int timeout)
+static inline void smtp_body (buffer *in, buffer *out, char const *fmtip, char const *sender, char const *const *recip, unsigned int n, unsigned int timeout) gccattr_noreturn ;
+static inline void smtp_body (buffer *in, buffer *out, char const *fmtip, char const *sender, char const *const *recip, unsigned int n, unsigned int timeout)
 {
   tain deadline ;
   unsigned int code ;
