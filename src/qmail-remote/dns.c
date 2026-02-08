@@ -212,7 +212,7 @@ unsigned int dns_stuff (char const *host, char const *const *eaddr, unsigned int
         if (r >= 2)  /* it's a CNAME, loop on it */
         {
           s6dns_domain_t *domain = genalloc_s(s6dns_domain_t, &dlist.ds) ;
-          if (cnames[i].count++ >= 100) qmailr_temp("DNS CNAME loop") ;
+          if (cnames[i].count++ >= 100) qmailr_perm("DNS CNAME loop") ;
           if (!skadns_send_g(&a, &cnames[i].id, domain, S6DNS_T_CNAME, &deadline, &deadline))
             qmailr_tempusys("send ", "CNAME", " DNS query") ;
           pending++ ;
