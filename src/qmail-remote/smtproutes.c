@@ -200,10 +200,10 @@ int smtproutes_init (smtproutes *routes)
     memcpy(tmp, cdbfile, cdblen) ;
     memcpy(tmp + cdblen, ":XXXXXX", 8) ;
     fdc = mkstemp(tmp) ;
-    if (fdc == -1) qmailr_tempusys("mkstemp") ;
+    if (fdc == -1) qmailr_tempusys("mkstemp ", tmp) ;
     smtproutes_compile(fdr, fdc) ;
     if (lseek(fdc, 0, SEEK_SET) == -1) qmailr_tempusys("lseek") ;
-    if (fsync(fdc) == -1) qmailr_tempusys("fsync ", "run/qmail-remote/smtproutes.cdb") ;
+    if (fsync(fdc) == -1) qmailr_tempusys("fsync ", tmp) ;
     fd_close(fdr) ;
     if (rename(tmp, cdbfile) == -1) unlink_void(tmp) ;
   }

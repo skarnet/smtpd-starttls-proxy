@@ -16,6 +16,8 @@ install-qmailr:
 	chmod 02750 $(QMAIL_HOME)/run
 	chown -- $(QMAILR_IDS) $(QMAIL_HOME)/run/qmail-remote
 	chmod 02700 $(QMAIL_HOME)/run/qmail-remote
-	touch -- $(QMAIL_HOME)/run/qmail-remote/tcpto6
 	chown -- $(QMAILR_IDS) $(QMAIL_HOME)/run/qmail-remote
 	chmod 02750 $(QMAIL_HOME)/run/qmail-remote
+	touch -- $(QMAIL_HOME)/run/qmail-remote/tcpto6
+	chown -- $(QMAILR_IDS) $(QMAIL_HOME)/run/qmail-remote/tcpto6
+	chmod 0640 $(QMAIL_HOME)/run/qmail-remote/tcpto6
