@@ -167,7 +167,7 @@ int smtproutes_init (smtproutes *routes)
   static char const *cdbfile = SMTPD_STARTTLS_PROXY_QMAIL_HOME "/run/qmail-remote/smtproutes.cdb" ;
   static char const *lckfile = SMTPD_STARTTLS_PROXY_QMAIL_HOME "/run/qmail-remote/smtproutes.lock" ;
   static char const *txtfile = SMTPD_STARTTLS_PROXY_QMAIL_HOME "/control/smtproutes" ;
-  static size_t const cdblen = sizeof(cdbfile) - 1 ;
+  static size_t const cdblen = sizeof(SMTPD_STARTTLS_PROXY_QMAIL_HOME "/run/qmail-remote/smtproutes.cdb") - 1 ;
   int fdl = openc_create(lckfile) ;
   if (fdl == -1) qmailr_tempusys("open ", "run/qmail-remote/smtproutes.lock") ;
   if (fd_lock(fdl, 1, 0) == -1) qmailr_tempusys("lock ", "run/qmail-remote/smtproutes.lock") ;
