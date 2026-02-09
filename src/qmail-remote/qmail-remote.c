@@ -20,6 +20,7 @@
 #include <skalibs/socket.h>
 #include <skalibs/ip46.h>
 #include <skalibs/unix-timed.h>
+#include <skalibs/lolstdio.h>
 #ifdef DEBUG
 # include <skalibs/prog.h>
 #endif
@@ -41,6 +42,7 @@ static inline void exec_tls (int fdr, char const *fmtip, unsigned int timeoutcon
   char fmtt[UINT_FMT] ;
   char fmtk[UINT_FMT] ;
   char const *argv[20 + n] ;
+  LOLDEBUG("connected to %s, sending with TLS", fmtip) ;
 
   if (fdw == -1) qmailr_tempusys("duplicate file descriptor") ;
   if (!env_mexec("TLS_UID", 0) || !env_mexec("TLS_GID", 0)
@@ -99,6 +101,7 @@ static inline void exec_notls (int fd, char const *fmtip, unsigned int timeoutre
   char fmtt[UINT_FMT] ;
   char const *argv[11 + n] ;
 
+  LOLDEBUG("connected to %s, sending without TLS", fmtip) ;
   fmtfd[uint_fmt(fmtfd, (unsigned int)fd)] = 0 ;
   fmtt[uint_fmt(fmtt, timeoutremote)] = 0 ;
   argv[m++] = SMTPD_STARTTLS_PROXY_LIBEXECPREFIX "qmail-remote-io" ;
@@ -122,7 +125,6 @@ static int smtp_start (buffer *in, buffer *out, char const *helohost, unsigned i
   int hastls = 0 ;
   tain deadline ;
   char line[1024] ;
-
   int r = qmailr_smtp_read_answer(in, line, 1024, timeout) ;
   if (r == -1) qmailr_tempusys("read from ", fmtip) ;
   if (!r) qmailr_temp("Connected to ", fmtip, " but connection died") ;
@@ -265,6 +267,9 @@ int main (int argc, char const *const *argv)
     stralloc_free(&ipme4) ;
     stralloc_free(&ipme6) ;
     mxs = genalloc_s(mxip, &mxipind) ;
+#ifdef DEBUG
+    char fmtip[IP6_FMT] ;
+#endif
 
     for (unsigned int i = 0 ; i < mxn ; i++) ntot += mxs[i].n4 + mxs[i].n6 ;
     if (!ntot) qmailr_perm("No suitable IP addresses for the MX") ;
@@ -282,6 +287,10 @@ int main (int argc, char const *const *argv)
           if (qmailr_tcpto_match(ip, 1)) continue ;
           fd = socket_tcp6() ;
           if (fd == -1) qmailr_tempusys("create socket") ;
+#ifdef DEBUG
+          fmtip[ip6_fmt(fmtip, ip)] = 0 ;
+          LOLDEBUG("connecting to %s", fmtip) ;
+#endif
           tain_addsec_g(&deadline, timeoutconnect) ;
           if (!socket_deadlineconnstamp6_g(fd, ip, port, &deadline))
           {
@@ -304,6 +313,10 @@ int main (int argc, char const *const *argv)
           if (qmailr_tcpto_match(ip, 0)) continue ;
           fd = socket_tcp4() ;
           if (fd == -1) qmailr_tempusys("create socket") ;
+#ifdef DEBUG
+          fmtip[ip4_fmt(fmtip, ip)] = 0 ;
+          LOLDEBUG("connecting to %s", fmtip) ;
+#endif
           tain_addsec_g(&deadline, timeoutconnect) ;
           if (!socket_deadlineconnstamp4_g(fd, ip, port, &deadline))
           {
