@@ -20,6 +20,9 @@
 #include <skalibs/socket.h>
 #include <skalibs/ip46.h>
 #include <skalibs/unix-timed.h>
+#ifdef DEBUG
+# include <skalibs/prog.h>
+#endif
 
 #include <s6-networking/config.h>
 #include <smtpd-starttls-proxy/config.h>
@@ -200,6 +203,12 @@ int main (int argc, char const *const *argv)
   size_t mepos, helopos, hostpos = 0 ;
   uint16_t port = 25 ;
   int r ;
+
+#ifdef DEBUG
+  char progstr[18 + PID_FMT] = "qmail-remote: pid " ;
+  progstr[18 + pid_fmt(progstr + 18, getpid())] = 0 ;
+  PROG = progstr ;
+#endif
 
   if (argc-- < 4) dieusage() ;
   argv++ ;
