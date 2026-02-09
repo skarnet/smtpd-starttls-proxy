@@ -262,6 +262,7 @@ int main (int argc, char const *const *argv)
     mxip const *mxs ;
     size_t eaddrpos[argc] ;
     size_t ntot = 0 ;
+    unsigned int pass = 1 + (qtls.flagwanttls && qtls.strictness == 1) ;
     unsigned int mxn = dns_stuff(hostpos ? storage.s + hostpos : host, argv, argc, eaddrpos, &mxipind, &storage, timeoutdns, ipme4.s, ipme4.len >> 2, ipme6.s, ipme6.len >> 4, !hostpos) ;
     if (!mxn) qmailr_perm("No suitable MX found for remote host") ;
     stralloc_free(&ipme4) ;
@@ -274,8 +275,9 @@ int main (int argc, char const *const *argv)
     for (unsigned int i = 0 ; i < mxn ; i++) ntot += mxs[i].n4 + mxs[i].n6 ;
     if (!ntot) qmailr_perm("No suitable IP addresses for the MX") ;
 
-    for (; qtls.flagwanttls && qtls.strictness == 1 ; qtls.flagwanttls = 0)
+    while (pass--)
     {
+      if (!pass && qtls.strictness == 1) qtls.flagwanttls = 0 ;
       for (unsigned int i = 0 ; i < mxn ; i++)
       {
 #ifdef SKALIBS_IPV6_ENABLED
