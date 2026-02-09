@@ -240,7 +240,7 @@ unsigned int dns_stuff (char const *host, char const *const *eaddr, unsigned int
             char s[256] ;
             s6dns_domain_t dom = *domain ;
             s6dns_domain_decode(&dom) ;
-            s6dns_domain_tostring(s, &dom) ;
+            s6dns_domain_tostring(s, 256, &dom) ;
             LOLDEBUG("sending CNAME for %s, id %hu", s, cnames[i].id) ;
           }
 #endif
