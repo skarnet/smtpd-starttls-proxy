@@ -286,7 +286,7 @@ unsigned int dns_stuff (char const *host, char const *const *eaddr, unsigned int
         else if (ids[j] == p->id6)
         {
           s6dns_message_header_t h ;
-          LOLDEBUG("received id %hu (A)", ids[j]) ;
+          LOLDEBUG("received id %hu (AAAA)", ids[j]) ;
           r = s6dns_message_parse(&h, packet, packetlen, &s6dns_message_parse_answer_aaaa, &p->ip6) ;
           if (r == -1) qmailr_tempsys("DNS packet parsing error") ;
           if (!r)
