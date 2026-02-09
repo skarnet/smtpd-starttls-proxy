@@ -186,14 +186,11 @@ unsigned int dns_stuff (char const *host, char const *const *eaddr, unsigned int
           {
 #ifdef DEBUG
             char exch[256] ;
-            {
-              s6dns_domain_t dexch = mxs[i].exchange ;
-              s6dns_domain_decode(&dexch) ;
-              s6dns_domain_tostring(exch, 256, &dexch) ;
-            }
+            s6dns_domain_tostring(exch, 256, &mxs[i].exchange) ;
 #endif
             mxipinfo *p = genalloc_s(mxipinfo, &mxipi) + i ;
             p->ip4 = p->ip6 = stralloc_zero ;
+            s6dns_domain_encode(&mxs[i].exchange) ;
             if (!skadns_send_g(&a, &p->id4, &mxs[i].exchange, S6DNS_T_A, &deadline, &deadline))
               qmailr_tempusys("send ", "A", " DNS query") ;
             LOLDEBUG("sending A for %s, id %hu", exch, p->id4) ;
