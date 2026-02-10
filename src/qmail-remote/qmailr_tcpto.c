@@ -1,15 +1,18 @@
 /* ISC license. */
 
+#include <skalibs/bsdsnowflake.h>
+
 #include <stdint.h>
 #include <string.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <errno.h>
+#include <sys/mman.h>
 
+#include <skalibs/stat.h>
 #include <skalibs/uint32.h>
 #include <skalibs/uint64.h>
 #include <skalibs/allreadwrite.h>
-#include <skalibs/cdb.h>
 #include <skalibs/tai.h>
 #include <skalibs/djbunix.h>
 
@@ -41,15 +44,19 @@ int qmailr_tcpto_match (char const *ip, int is6)
   uint32_t iplen = is6 ? 16 : 4 ;
   uint32_t width = iplen + 12 ;
   int r = 0 ;
+  char const *map ;
   char const *p ;
-  cdb c ;  /* XXX: not a cdb, we're just using the mmap wrapper */
+  struct stat st ;
   int fd = openc_read(file) ;
 
   if (fd == -1) return -1 ;
   if (fd_lock(fd, 0, 0) == -1) goto err ;
-  if (!cdb_init_fromfd(&c, fd)) goto err ;
-  if (c.size % width) goto errproto ;
-  p = bsearch(ip, c.map, c.size / width, width, is6 ? &qmailr_memcmp16 : &qmailr_memcmp4) ;
+  if (fstat(fd, &st) == -1) goto err ;
+  if (!st.st_size) goto end ;
+  if (st.st_size % width) goto errproto ;
+  map = mmap(0, st.st_size, PROT_READ, MAP_SHARED, fd, 0) ;
+  if (map == MAP_FAILED) goto err ;
+  p = bsearch(ip, map, st.st_size / width, width, is6 ? &qmailr_memcmp16 : &qmailr_memcmp4) ;
   if (p)
   {
     if (p[iplen] >= 2)
@@ -62,7 +69,7 @@ int qmailr_tcpto_match (char const *ip, int is6)
       r = tai_sec(&when) < ((60 + (getpid() & 31)) << 6) ;  /* don't ask me, ask djb */
     }
   }
-  cdb_free(&c) ;
+ end:
   fd_close(fd) ;
   return r ;
 

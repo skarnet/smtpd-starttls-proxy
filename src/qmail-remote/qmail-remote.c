@@ -19,9 +19,6 @@
 #include <skalibs/ip46.h>
 #include <skalibs/unix-timed.h>
 #include <skalibs/lolstdio.h>
-#ifdef DEBUG
-# include <skalibs/prog.h>
-#endif
 
 #include <smtpd-starttls-proxy/config.h>
 #include "qmailr.h"
@@ -37,7 +34,6 @@ static inline void exec_notls (int fd, char const *fmtip, unsigned int timeoutre
   char fmtt[UINT_FMT] ;
   char const *argv[10 + n] ;
 
-  LOLDEBUG("connected to %s, sending without TLS", fmtip) ;
   fmtfd[uint_fmt(fmtfd, (unsigned int)fd)] = 0 ;
   fmtt[uint_fmt(fmtt, timeoutremote)] = 0 ;
   argv[m++] = SMTPD_STARTTLS_PROXY_LIBEXECPREFIX "qmail-remote-io" ;
@@ -141,12 +137,6 @@ int main (int argc, char const *const *argv)
   uint16_t port = 25 ;
   int r ;
 
-#ifdef DEBUG
-  char progstr[18 + PID_FMT] = "qmail-remote: pid " ;
-  progstr[18 + pid_fmt(progstr + 18, getpid())] = 0 ;
-  PROG = progstr ;
-#endif
-
   if (argc-- < 4) dieusage() ;
   argv++ ;
   if (chdir(SMTPD_STARTTLS_PROXY_QMAIL_HOME) == -1) qmailr_tempusys("chdir to ", SMTPD_STARTTLS_PROXY_QMAIL_HOME) ;
@@ -203,9 +193,6 @@ int main (int argc, char const *const *argv)
     stralloc_free(&ipme4) ;
     stralloc_free(&ipme6) ;
     mxs = genalloc_s(mxip, &mxipind) ;
-#ifdef DEBUG
-    char fmtip[IP6_FMT] ;
-#endif
 
     for (unsigned int i = 0 ; i < mxn ; i++) ntot += mxs[i].n4 + mxs[i].n6 ;
     if (!ntot) qmailr_perm("No suitable IP addresses for the MX") ;
@@ -224,10 +211,6 @@ int main (int argc, char const *const *argv)
           if (qmailr_tcpto_match(ip, 1)) continue ;
           fd = socket_tcp6() ;
           if (fd == -1) qmailr_tempusys("create socket") ;
-#ifdef DEBUG
-          fmtip[ip6_fmt(fmtip, ip)] = 0 ;
-          LOLDEBUG("connecting to %s", fmtip) ;
-#endif
           tain_addsec_g(&deadline, timeoutconnect) ;
           if (!socket_deadlineconnstamp6_g(fd, ip, port, &deadline))
           {
@@ -250,10 +233,6 @@ int main (int argc, char const *const *argv)
           if (qmailr_tcpto_match(ip, 0)) continue ;
           fd = socket_tcp4() ;
           if (fd == -1) qmailr_tempusys("create socket") ;
-#ifdef DEBUG
-          fmtip[ip4_fmt(fmtip, ip)] = 0 ;
-          LOLDEBUG("connecting to %s", fmtip) ;
-#endif
           tain_addsec_g(&deadline, timeoutconnect) ;
           if (!socket_deadlineconnstamp4_g(fd, ip, port, &deadline))
           {

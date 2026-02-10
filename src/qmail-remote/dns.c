@@ -13,7 +13,6 @@
 #include <skalibs/ip46.h>
 #include <skalibs/random.h>
 #include <skalibs/prog.h>
-#include <skalibs/lolstdio.h>
 
 #include <s6-dns/s6dns.h>
 #include <s6-dns/skadns.h>
@@ -61,12 +60,10 @@ static unsigned int use_host_as_mx (skadns_t *a, char const *host, genalloc *mxi
   if (hostlen > 1 && storage->s[storage->len - 2] == '.') storage->s[--storage->len - 1] = 0 ;
   if (!skadns_send_g(a, &info.id4, &q, S6DNS_T_A, deadline, deadline))
     qmailr_tempusys("send ", "A", " DNS query") ;
-  LOLDEBUG("sending A for %s, id %hu", host, info.id4) ;
   newreqs++ ;
 #ifdef SKALIBS_IPV6_ENABLED
   if (!skadns_send_g(a, &info.id6, &q, S6DNS_T_AAAA, deadline, deadline))
     qmailr_tempusys("send ", "AAAA", " DNS query") ;
-  LOLDEBUG("sending AAAA for %s, id %hu", host, info.id6) ;
   newreqs++ ;
 #endif
   if (!genalloc_catb(mxipinfo, mxip, &info, 1)) dienomem() ;
@@ -120,7 +117,6 @@ unsigned int dns_stuff (char const *host, char const *const *eaddr, unsigned int
         qmailr_tempusys("DNS-encode recipient domain") ;
       if (!skadns_send_g(&a, &cnames[i].id, &q, S6DNS_T_CNAME, &deadline, &deadline))
         qmailr_tempusys("send ", "CNAME", " DNS query") ;
-      LOLDEBUG("sending CNAME for %s, id %hu", at+1, cnames[i].id) ;
       cnames[i].count = 1 ;
       pending++ ;
     }
@@ -139,7 +135,6 @@ unsigned int dns_stuff (char const *host, char const *const *eaddr, unsigned int
       qmailr_tempusys("DNS-encode host domain") ;
     if (!skadns_send_g(&a, &mxid, &q, S6DNS_T_MX, &deadline, &deadline))
       qmailr_tempusys("send ", "MX", " DNS query") ;
-    LOLDEBUG("sending MX for %s, id %hu", host, mxid) ;
     pending++ ;
   }
   else
@@ -155,7 +150,6 @@ unsigned int dns_stuff (char const *host, char const *const *eaddr, unsigned int
     int r = iopause_g(&x, 1, &deadline) ;
     if (r == -1) qmailr_tempusys("iopause") ;
     if (!r) qmailr_tempsys("Timed out waiting for DNS") ;
-    LOLDEBUG("looping, pending = %u", pending) ;
     r = skadns_update(&a) ;
     if (r == -1) qmailr_tempusys("read DNS answers") ;
     ids = genalloc_s(uint16_t, &a.list) ;
@@ -170,7 +164,6 @@ unsigned int dns_stuff (char const *host, char const *const *eaddr, unsigned int
         s6dns_message_header_t h ;
         genalloc mxes = GENALLOC_ZERO ;  /* s6dns_message_rr_mx_t */
 
-        LOLDEBUG("received id %hu (MX)", mxid) ;
         r = s6dns_message_parse(&h, packet, packetlen, &s6dns_message_parse_answer_mx, &mxes) ;
         if (r == -1) qmailr_tempsys("DNS packet parsing error") ;
         if (!r)
@@ -202,12 +195,10 @@ unsigned int dns_stuff (char const *host, char const *const *eaddr, unsigned int
             s6dns_domain_encode(&mxs[i].exchange) ;
             if (!skadns_send_g(&a, &p->id4, &mxs[i].exchange, S6DNS_T_A, &deadline, &deadline))
               qmailr_tempusys("send ", "A", " DNS query") ;
-            LOLDEBUG("sending A for %s, id %hu", storage->s + p->pos, p->id4) ;
             pending++ ;
 #ifdef SKALIBS_IPV6_ENABLED
             if (!skadns_send_g(&a, &p->id6, &mxs[i].exchange, S6DNS_T_AAAA, &deadline, &deadline))
               qmailr_tempusys("send ", "AAAA", " DNS query") ;
-            LOLDEBUG("sending AAAA for %s, id %hu", storage->s + p->pos, p->id6) ;
             pending++ ;
 #endif
           }
@@ -225,7 +216,6 @@ unsigned int dns_stuff (char const *host, char const *const *eaddr, unsigned int
       {
         s6dns_message_header_t h ;
         s6dns_dpag_t dlist = { .ds = GENALLOC_ZERO, .rtype = S6DNS_T_CNAME } ;
-        LOLDEBUG("received id %hu (CNAME)", ids[j]) ;
         r = s6dns_message_parse(&h, packet, packetlen, &s6dns_message_parse_answer_domain, &dlist) ;
         if (r == -1) qmailr_tempsys("DNS packet parsing error") ;
         if (!r)
@@ -241,26 +231,13 @@ unsigned int dns_stuff (char const *host, char const *const *eaddr, unsigned int
           if (cnames[i].count++ >= 100) qmailr_perm("DNS CNAME loop") ;
           if (!skadns_send_g(&a, &cnames[i].id, domain, S6DNS_T_CNAME, &deadline, &deadline))
             qmailr_tempusys("send ", "CNAME", " DNS query") ;
-#ifdef DEBUG
-          {
-            char s[256] ;
-            s6dns_domain_t dom = *domain ;
-            s6dns_domain_decode(&dom) ;
-            s6dns_domain_tostring(s, 256, &dom) ;
-            LOLDEBUG("sending CNAME for %s, id %hu", s, cnames[i].id) ;
-          }
-#endif
           pending++ ;
           if (!stralloc_ready(&cnames[i].sa, 256)) dienomem() ;
           s6dns_domain_decode(domain) ;
           cnames[i].sa.len = s6dns_domain_tostring(cnames[i].sa.s, 256, domain) ;
           genalloc_free(s6dns_domain_t, &dlist.ds) ;
         }
-        else
-        {
-          cnames[i].id = UINT16_MAX ;  /* we have the canonical host in cnames[i].sa */
-          LOLDEBUG("%.*s is not a CNAME", (int)cnames[i].sa.len, cnames[i].sa.s) ;
-        }
+        else cnames[i].id = UINT16_MAX ;  /* we have the canonical host in cnames[i].sa */
         continue ;
       }
 
@@ -270,7 +247,6 @@ unsigned int dns_stuff (char const *host, char const *const *eaddr, unsigned int
         if (ids[j] == p->id4)
         {
           s6dns_message_header_t h ;
-          LOLDEBUG("received id %hu (A)", ids[j]) ;
           r = s6dns_message_parse(&h, packet, packetlen, &s6dns_message_parse_answer_a, &p->ip4) ;
           if (r == -1) qmailr_tempsys("DNS packet parsing error") ;
           if (!r)
@@ -295,7 +271,6 @@ unsigned int dns_stuff (char const *host, char const *const *eaddr, unsigned int
         else if (ids[j] == p->id6)
         {
           s6dns_message_header_t h ;
-          LOLDEBUG("received id %hu (AAAA)", ids[j]) ;
           r = s6dns_message_parse(&h, packet, packetlen, &s6dns_message_parse_answer_aaaa, &p->ip6) ;
           if (r == -1) qmailr_tempsys("DNS packet parsing error") ;
           if (!r)
