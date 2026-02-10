@@ -6,6 +6,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <skalibs/gccattributes.h>
 #include <skalibs/cdb.h>
 #include <skalibs/stralloc.h>
 #include <skalibs/genalloc.h>
@@ -42,5 +43,8 @@ struct smtproutes_s
 extern int smtproutes_init (smtproutes *) ;
 extern int smtproutes_match (smtproutes const *, char const *, stralloc *, size_t *, uint16_t *) ;
 extern void smtproutes_free (smtproutes *) ;
+
+
+extern void run_tls (int, char const *, unsigned int, unsigned int, qmailr_tls const *, size_t, size_t const *, unsigned int, char const *) gccattr_noreturn ;
 
 #endif

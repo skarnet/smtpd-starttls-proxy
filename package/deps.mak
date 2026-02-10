@@ -13,6 +13,7 @@ src/qmail-remote/qmailr_tcpto.o src/qmail-remote/qmailr_tcpto.lo: src/qmail-remo
 src/qmail-remote/qmailr_tls.o src/qmail-remote/qmailr_tls.lo: src/qmail-remote/qmailr_tls.c src/qmail-remote/qmailr.h src/include/smtpd-starttls-proxy/config.h
 src/qmail-remote/qmailr_utils.o src/qmail-remote/qmailr_utils.lo: src/qmail-remote/qmailr_utils.c src/qmail-remote/qmailr.h
 src/qmail-remote/smtproutes.o src/qmail-remote/smtproutes.lo: src/qmail-remote/smtproutes.c src/qmail-remote/qmail-remote.h src/qmail-remote/qmailr.h src/include/smtpd-starttls-proxy/config.h
+src/qmail-remote/tls.o src/qmail-remote/tls.lo: src/qmail-remote/tls.c src/qmail-remote/qmail-remote.h src/qmail-remote/qmailr.h
 src/smtpd-starttls-proxy/smtpd-starttls-proxy-io.o src/smtpd-starttls-proxy/smtpd-starttls-proxy-io.lo: src/smtpd-starttls-proxy/smtpd-starttls-proxy-io.c
 
 ifeq ($(strip $(STATIC_LIBS_ARE_PIC)),)
@@ -21,7 +22,7 @@ else
 libqmailr.a.xyzzy:src/qmail-remote/qmailr_control.lo src/qmail-remote/qmailr_error.lo src/qmail-remote/qmailr_smtp.lo src/qmail-remote/qmailr_tcpto.lo src/qmail-remote/qmailr_tls.lo src/qmail-remote/qmailr_utils.lo
 endif
 qmail-remote: EXTRA_LIBS :=
-qmail-remote: src/qmail-remote/qmail-remote.o src/qmail-remote/dns.o src/qmail-remote/smtproutes.o libqmailr.a.xyzzy -lskadns -ls6dns -lskarnet
+qmail-remote: src/qmail-remote/qmail-remote.o src/qmail-remote/dns.o src/qmail-remote/smtproutes.o src/qmail-remote/tls.o libqmailr.a.xyzzy -lskadns -ls6dns -lskarnet
 qmail-remote-io: EXTRA_LIBS :=
 qmail-remote-io: src/qmail-remote/qmail-remote-io.o libqmailr.a.xyzzy -lskarnet
 smtpd-starttls-proxy-io: EXTRA_LIBS := ${SOCKET_LIB} ${SYSCLOCK_LIB}
