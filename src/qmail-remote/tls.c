@@ -52,7 +52,7 @@ void run_tls (int fdr, char const *fmtip, unsigned int timeoutconnect, unsigned 
 
   if (fdw == -1) qmailr_tempusys("duplicate file descriptor") ;
   if (pipe(p) == -1) qmailr_tempusys("pipe") ;
-  fa[1].x.fd = p[0] ;
+  fa[0].x.fd = p[0] ;
   fa[1].x.fd2[1] = p[1] ;
 
   if (!env_addmodif(&modif, "TLS_UID", 0) || !env_addmodif(&modif, "TLS_GID", 0)
