@@ -240,7 +240,7 @@ int smtproutes_match (smtproutes const *routes, char const *s, stralloc *sa, siz
   if (!r) return 0 ;
   if (data.len < 3) return 0 ;
   if (data.s[data.len - 1]) qmailr_temp("Invalid ", "run/qmail-remote/smtproutes.cdb") ;
-  LOLDEBUG("found: key %s has relay %s", s, data.s + 2)
+  LOLDEBUG("found: key %s has relay %s", s, data.s + 2) ;
   *pos = sa->len ;
   uint16_unpack_big(data.s, port) ;
   if (!stralloc_catb(sa, data.s + 2, data.len - 2)) dienomem() ;
