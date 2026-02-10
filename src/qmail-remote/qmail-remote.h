@@ -21,6 +21,7 @@
 typedef struct mxip_s mxip, *mxip_ref ;
 struct mxip_s
 {
+  size_t namepos ;
   size_t pos4 ;
   size_t pos6 ;
   uint16_t n4 ;
@@ -45,6 +46,6 @@ extern int smtproutes_match (smtproutes const *, char const *, stralloc *, size_
 extern void smtproutes_free (smtproutes *) ;
 
 
-extern void run_tls (int, char const *, unsigned int, unsigned int, qmailr_tls const *, size_t, size_t const *, unsigned int, char const *) gccattr_noreturn ;
+extern void run_tls (int, char const *, unsigned int, unsigned int, qmailr_tls const *, size_t, size_t const *, unsigned int, size_t, char const *) gccattr_noreturn ;
 
 #endif

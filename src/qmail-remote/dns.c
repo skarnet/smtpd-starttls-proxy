@@ -35,6 +35,7 @@ struct mxipinfo_s
 {
   stralloc ip4 ;
   stralloc ip6 ;
+  size_t pos ;
   uint16_t id4 ;
   uint16_t id6 ;
 } ;
@@ -47,13 +48,16 @@ static int mx_cmp (void const *a, void const *b)
   return aa->preference < bb-> preference ? -1 : aa->preference > bb->preference ;
 }
 
-static unsigned int use_host_as_mx (skadns_t *a, char const *host, genalloc *mxip, tain const *deadline)
+static unsigned int use_host_as_mx (skadns_t *a, char const *host, genalloc *mxip, stralloc *storage, tain const *deadline)
 {
+  size_t hostlen = strlen(host) ;
   unsigned int newreqs = 0 ;
   mxipinfo info = MXIPINFO_ZERO ;
   s6dns_domain_t q ;
-  if (!s6dns_domain_fromstring_noqualify_encode(&q, host, strlen(host)))
+  if (!s6dns_domain_fromstring_noqualify_encode(&q, host, hostlen))
     qmailr_tempusys("DNS-encode host domain") ;
+  info.pos = storage->len ;
+  if (!stralloc_catb(storage, host, hostlen+1)) dienomem() ;
   if (!skadns_send_g(a, &info.id4, &q, S6DNS_T_A, deadline, deadline))
     qmailr_tempusys("send ", "A", " DNS query") ;
   LOLDEBUG("sending A for %s, id %hu", host, info.id4) ;
@@ -140,7 +144,7 @@ unsigned int dns_stuff (char const *host, char const *const *eaddr, unsigned int
   else
   {
     mxn = 1 ;
-    pending += use_host_as_mx(&a, host, &mxipi, &deadline) ;
+    pending += use_host_as_mx(&a, host, &mxipi, storage, &deadline) ;
   }
 
   while (pending)
@@ -184,21 +188,23 @@ unsigned int dns_stuff (char const *host, char const *const *eaddr, unsigned int
           qsort(mxs, mxn, sizeof(s6dns_message_rr_mx_t), &mx_cmp) ;
           for (unsigned int i = 0 ; i < mxn ; i++)
           {
-#ifdef DEBUG
-            char exch[256] ;
-            s6dns_domain_tostring(exch, 256, &mxs[i].exchange) ;
-#endif
             mxipinfo *p = genalloc_s(mxipinfo, &mxipi) + i ;
+            unsigned int len ;
+            if (!stralloc_readyplus(storage, 256)) dienomem() ;
+            p->pos = storage->len ;
+            len = s6dns_domain_tostring(storage->s + p->pos, 256, &mxs[i].exchange) ;
+            if (!len) qmailr_perm("invalid MX name") ;
+            storage->len += len ; storage->s[storage->len++] = 0 ;
             p->ip4 = p->ip6 = stralloc_zero ;
             s6dns_domain_encode(&mxs[i].exchange) ;
             if (!skadns_send_g(&a, &p->id4, &mxs[i].exchange, S6DNS_T_A, &deadline, &deadline))
               qmailr_tempusys("send ", "A", " DNS query") ;
-            LOLDEBUG("sending A for %s, id %hu", exch, p->id4) ;
+            LOLDEBUG("sending A for %s, id %hu", storage->s + p->pos, p->id4) ;
             pending++ ;
 #ifdef SKALIBS_IPV6_ENABLED
             if (!skadns_send_g(&a, &p->id6, &mxs[i].exchange, S6DNS_T_AAAA, &deadline, &deadline))
               qmailr_tempusys("send ", "AAAA", " DNS query") ;
-            LOLDEBUG("sending AAAA for %s, id %hu", exch, p->id6) ;
+            LOLDEBUG("sending AAAA for %s, id %hu", storage->s + p->pos, p->id6) ;
             pending++ ;
 #endif
           }
@@ -207,7 +213,7 @@ unsigned int dns_stuff (char const *host, char const *const *eaddr, unsigned int
         else
         {
           mxn = 1 ;
-          pending += use_host_as_mx(&a, host, &mxipi, &deadline) ;
+          pending += use_host_as_mx(&a, host, &mxipi, storage, &deadline) ;
         }
         continue ;
       }
@@ -331,6 +337,7 @@ unsigned int dns_stuff (char const *host, char const *const *eaddr, unsigned int
   {
     mxip data ;
     mxipinfo *p = genalloc_s(mxipinfo, &mxipi) + i ;
+    data.namepos = p->pos ;
     data.n4 = p->ip4.len >> 2 ;
     data.pos4 = storage->len ;
     if (!stralloc_catb(storage, p->ip4.s, p->ip4.len)) dienomem() ;

@@ -92,7 +92,7 @@ static int smtp_start (buffer *in, buffer *out, char const *helohost, unsigned i
   return hastls ;
 }
 
-static void attempt_smtp (int fd, char const *ip, int is6, unsigned int timeoutconnect, unsigned int timeoutremote, qmailr_tls const *qtls, size_t helopos, size_t const *eaddrpos, unsigned int n, char const *storage)
+static void attempt_smtp (int fd, char const *ip, int is6, unsigned int timeoutconnect, unsigned int timeoutremote, qmailr_tls const *qtls, size_t helopos, size_t const *eaddrpos, unsigned int n, size_t mxnamepos, char const *storage)
 {
   int hastls ;
   char inbuf[2048] ;
@@ -121,7 +121,7 @@ static void attempt_smtp (int fd, char const *ip, int is6, unsigned int timeoutc
         qmailr_smtp_quit(&out, timeoutremote) ;
         qmailr_temp("Connected to ", fmtip, " but connection died") ;
       }
-      else if (r == 220) run_tls(fd, fmtip, timeoutconnect, timeoutremote, qtls, helopos, eaddrpos, n, storage) ;
+      else if (r == 220) run_tls(fd, fmtip, timeoutconnect, timeoutremote, qtls, helopos, eaddrpos, n, mxnamepos, storage) ;
       if (qtls->strictness) return ;
     }
     else if (qtls->strictness >= 2) return ;
@@ -239,7 +239,7 @@ int main (int argc, char const *const *argv)
           }
           if (!qmailr_tcpto_update(ip, 1, 0))
             qmailr_tempusys("update ", "tcpto6") ;
-          attempt_smtp(fd, ip, 1, timeoutconnect, timeoutremote, &qtls, helopos, eaddrpos, argc, storage.s) ;
+          attempt_smtp(fd, ip, 1, timeoutconnect, timeoutremote, &qtls, helopos, eaddrpos, argc, mxs[i].namepos, storage.s) ;
           fd_close(fd) ;
         }
 #endif
@@ -265,7 +265,7 @@ int main (int argc, char const *const *argv)
           }
           if (!qmailr_tcpto_update(ip, 0, 0))
             qmailr_tempusys("update ", "tcpto") ;
-          attempt_smtp(fd, ip, 0, timeoutconnect, timeoutremote, &qtls, helopos, eaddrpos, argc, storage.s) ;
+          attempt_smtp(fd, ip, 0, timeoutconnect, timeoutremote, &qtls, helopos, eaddrpos, argc, mxs[i].namepos, storage.s) ;
           fd_close(fd) ;
         }
       }
