@@ -177,6 +177,7 @@ int main (int argc, char const *const *argv)
       size_t hostlen = strlen(host) ;
       for (size_t i = 0 ; i < hostlen ; i++) if (host[i] == '.')
         if (smtproutes_match(&routes, host + i + 1, &storage, &hostpos, &port)) break ;
+      if (!hostpos) smtproutes_match(&routes, "", &storage, &hostpos, &port) ;
     }
     smtproutes_free(&routes) ;
   }
