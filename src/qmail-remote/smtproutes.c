@@ -18,6 +18,7 @@
 #include <skalibs/stralloc.h>
 #include <skalibs/djbtime.h>
 #include <skalibs/djbunix.h>
+#include <skalibs/lolstdio.h>
 
 #include <smtpd-starttls-proxy/config.h>
 #include "qmailr.h"
@@ -127,6 +128,12 @@ static inline void smtproutes_compile (int fdr, int fdw)
   {
     char c = getnext(&b) ;
     uint16_t val = table[state][cclass(c)] ;
+    LOLDEBUG("state %hhu, char %c, newstate %hu, actions %s%s%s%s%s", state, c, val & 0x000f,
+      val & 0x0100 ? "n" : "",
+      val & 0x0200 ? "h" : "",
+      val & 0x0400 ? "r" : "",
+      val & 0x0800 ? "p" : "",
+      val & 0x1000 ? "a" : "") ;
     state = val & 0x000f ;
     if (val & 0x0100)
     {
@@ -151,9 +158,12 @@ static inline void smtproutes_compile (int fdr, int fdw)
     }
     if (val & 0x0100)
     {
-      if (relaypos > 1 || relayend > 2 + relaypos)
+      if (relaypos || relayend > 2 + relaypos)
+      {
+        LOLDEBUG("adding entry: %.*s -> %.*s", (int)relaypos, sa.s, (int)(relayend - relaypos), sa.s + relaypos) ;
         if (!cdbmake_add(&cm, sa.s, relaypos, sa.s + relaypos, relayend - relaypos))
           qmailr_tempusys("cdbmake_add") ;
+      }
       sa.len = 0 ;
     }
   }
