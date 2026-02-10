@@ -160,7 +160,9 @@ static inline void smtproutes_compile (int fdr, int fdw)
     {
       if (relaypos || relayend > 2 + relaypos)
       {
-        LOLDEBUG("adding entry: %.*s -> %.*s", (int)relaypos, sa.s, (int)(relayend - relaypos), sa.s + relaypos) ;
+        uint16_t port ;
+        uint16_unpack_big(sa.s + relaypos, &port) ;
+        LOLDEBUG("adding entry: %.*s -> %.*s port %hu", (int)relaypos, sa.s, (int)(relayend - relaypos - 2), sa.s + relaypos + 2, port) ;
         if (!cdbmake_add(&cm, sa.s, relaypos, sa.s + relaypos, relayend - relaypos))
           qmailr_tempusys("cdbmake_add") ;
       }

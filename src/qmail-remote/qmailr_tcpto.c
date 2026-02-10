@@ -44,7 +44,7 @@ int qmailr_tcpto_match (char const *ip, int is6)
   uint32_t iplen = is6 ? 16 : 4 ;
   uint32_t width = iplen + 12 ;
   int r = 0 ;
-  char const *map ;
+  char *map ;
   char const *p ;
   struct stat st ;
   int fd = openc_read(file) ;
@@ -69,6 +69,7 @@ int qmailr_tcpto_match (char const *ip, int is6)
       r = tai_sec(&when) < ((60 + (getpid() & 31)) << 6) ;  /* don't ask me, ask djb */
     }
   }
+  munmap(map, st.st_size) ;
  end:
   fd_close(fd) ;
   return r ;
