@@ -107,6 +107,7 @@ void run_tls (int fdr, char const *fmtip, unsigned int timeoutconnect, unsigned 
     if (r)
     {
       if (r == 4096) r-- ;
+      while (r && buf[r-1] == '\n') r-- ;
       buf[r++] = 0 ;
       qmailr_temp(buf) ;
     }
