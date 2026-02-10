@@ -29,13 +29,13 @@
 
 #define dieusage() qmailr_perm("qmail-remote was invoked improperly")
 
-static inline void exec_notls (int fd, char const *fmtip, unsigned int timeoutremote, size_t helopos, size_t const *eaddrpos, unsigned int n, char const *storage) gccattr_noreturn ;
-static inline void exec_notls (int fd, char const *fmtip, unsigned int timeoutremote, size_t helopos, size_t const *eaddrpos, unsigned int n, char const *storage)
+static inline void exec_notls (int fd, char const *fmtip, unsigned int timeoutremote, size_t const *eaddrpos, unsigned int n, char const *storage) gccattr_noreturn ;
+static inline void exec_notls (int fd, char const *fmtip, unsigned int timeoutremote, size_t const *eaddrpos, unsigned int n, char const *storage)
 {
   unsigned int m = 0 ;
   char fmtfd[UINT_FMT] ;
   char fmtt[UINT_FMT] ;
-  char const *argv[11 + n] ;
+  char const *argv[10 + n] ;
 
   LOLDEBUG("connected to %s, sending without TLS", fmtip) ;
   fmtfd[uint_fmt(fmtfd, (unsigned int)fd)] = 0 ;
@@ -49,7 +49,6 @@ static inline void exec_notls (int fd, char const *fmtip, unsigned int timeoutre
   argv[m++] = fmtfd ;
   argv[m++] = "--" ;
   argv[m++] = fmtip ;
-  argv[m++] = storage + helopos ;
   for (unsigned int i = 0 ; i < n ; i++) argv[m++] = storage + eaddrpos[i] ;
   argv[m++] = 0 ;
   exec(argv) ;
@@ -121,12 +120,12 @@ static void attempt_smtp (int fd, char const *ip, int is6, unsigned int timeoutc
         qmailr_smtp_quit(&out, timeoutremote) ;
         qmailr_temp("Connected to ", fmtip, " but connection died") ;
       }
-      else if (r == 220) run_tls(fd, fmtip, timeoutconnect, timeoutremote, qtls, helopos, eaddrpos, n, mxnamepos, storage) ;
+      else if (r == 220) run_tls(fd, fmtip, timeoutconnect, timeoutremote, qtls, eaddrpos, n, mxnamepos, storage) ;
       if (qtls->strictness) return ;
     }
     else if (qtls->strictness >= 2) return ;
   }
-  exec_notls(fd, fmtip, timeoutremote, helopos, eaddrpos, n, storage) ;
+  exec_notls(fd, fmtip, timeoutremote, eaddrpos, n, storage) ;
 }
 
 int main (int argc, char const *const *argv)

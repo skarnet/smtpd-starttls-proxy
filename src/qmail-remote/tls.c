@@ -31,7 +31,7 @@ So instead of execing, we spawn it and stick around to translate
 the exit code and the error message back to qmail-rspawn.
 */
 
-void run_tls (int fdr, char const *fmtip, unsigned int timeoutconnect, unsigned int timeoutremote, qmailr_tls const *qtls, size_t helopos, size_t const *eaddrpos, unsigned int n, size_t mxnamepos, char const *storage)
+void run_tls (int fdr, char const *fmtip, unsigned int timeoutconnect, unsigned int timeoutremote, qmailr_tls const *qtls, size_t const *eaddrpos, unsigned int n, size_t mxnamepos, char const *storage)
 {
   int wstat ;
   pid_t pid ;
@@ -48,7 +48,7 @@ void run_tls (int fdr, char const *fmtip, unsigned int timeoutconnect, unsigned 
   char fmtw[UINT_FMT] ;
   char fmtt[UINT_FMT] ;
   char fmtk[UINT_FMT] ;
-  char const *argv[22 + n] ;
+  char const *argv[21 + n] ;
 
   if (fdw == -1) qmailr_tempusys("duplicate file descriptor") ;
   if (pipe(p) == -1) qmailr_tempusys("pipe") ;
@@ -89,7 +89,6 @@ void run_tls (int fdr, char const *fmtip, unsigned int timeoutconnect, unsigned 
   argv[m++] = fmtw ;
   argv[m++] = "--" ;
   argv[m++] = fmtip ;
-  argv[m++] = storage + helopos ;
   for (unsigned int i = 0 ; i < n ; i++) argv[m++] = storage + eaddrpos[i] ;
   argv[m++] = 0 ;
   pid = mspawn_m(argv, modif.s, modif.len, 0, fa, 2) ;
