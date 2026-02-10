@@ -5,6 +5,7 @@
 
 #include <skalibs/types.h>
 #include <skalibs/env.h>
+#include <skalibs/stralloc.h>
 #include <skalibs/cspawn.h>
 #include <skalibs/djbunix.h>
 #include <skalibs/exec.h>
@@ -19,6 +20,7 @@ void run_tls (int fdr, char const *fmtip, unsigned int timeoutconnect, unsigned 
 {
   int fdw = dup(fdr) ;
   unsigned int m = 0 ;
+  stralloc modif = STRALLOC_ZERO ;
   char fmtr[UINT_FMT] ;
   char fmtw[UINT_FMT] ;
   char fmtt[UINT_FMT] ;
@@ -26,12 +28,12 @@ void run_tls (int fdr, char const *fmtip, unsigned int timeoutconnect, unsigned 
   char const *argv[20 + n] ;
 
   if (fdw == -1) qmailr_tempusys("duplicate file descriptor") ;
-  if (!env_mexec("TLS_UID", 0) || !env_mexec("TLS_GID", 0)
-   || !env_mexec(qtls->flagtadir ? "CADIR" : "CAFILE", storage + qtls->tapos)) dienomem() ;
+  if (!env_addmodif(&modif, "TLS_UID", 0) || !env_addmodif(&modif, "TLS_GID", 0)
+   || !env_addmodif(&modif, qtls->flagtadir ? "CADIR" : "CAFILE", storage + qtls->tapos)) dienomem() ;
   if (qtls->flagclientcert)
   {
-    if (!env_mexec("CERTFILE", storage + qtls->certpos)
-     || !env_mexec("KEYFILE", storage + qtls->keypos)) dienomem() ;
+    if (!env_addmodif(&modif, "CERTFILE", storage + qtls->certpos)
+     || !env_addmodif(&modif, "KEYFILE", storage + qtls->keypos)) dienomem() ;
   }
 
   {
@@ -70,6 +72,6 @@ void run_tls (int fdr, char const *fmtip, unsigned int timeoutconnect, unsigned 
   argv[m++] = storage + helopos ;
   for (unsigned int i = 0 ; i < n ; i++) argv[m++] = storage + eaddrpos[i] ;
   argv[m++] = 0 ;
-  mexec(argv) ;
+  mexec_m(argv, modif.s, modif.len) ;
   qmailr_tempusys("exec ", argv[0]) ;
 }
