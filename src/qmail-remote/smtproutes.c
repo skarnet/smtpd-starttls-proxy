@@ -18,7 +18,7 @@
 #include <skalibs/stralloc.h>
 #include <skalibs/djbtime.h>
 #include <skalibs/djbunix.h>
-#include <skalibs/lolstdio.h>
+// #include <skalibs/lolstdio.h>
 
 #include <smtpd-starttls-proxy/config.h>
 #include "qmailr.h"
@@ -128,12 +128,12 @@ static inline void smtproutes_compile (int fdr, int fdw)
   {
     char c = getnext(&b) ;
     uint16_t val = table[state][cclass(c)] ;
-    LOLDEBUG("state %hhu, char %c, newstate %hu, actions %s%s%s%s%s", state, c, val & 0x000f,
-      val & 0x0100 ? "n" : "",
-      val & 0x0200 ? "h" : "",
-      val & 0x0400 ? "r" : "",
-      val & 0x0800 ? "p" : "",
-      val & 0x1000 ? "a" : "") ;
+//    LOLDEBUG("state %hhu, char %c, newstate %hu, actions %s%s%s%s%s", state, c, val & 0x000f,
+//      val & 0x0100 ? "n" : "",
+//      val & 0x0200 ? "h" : "",
+//      val & 0x0400 ? "r" : "",
+//      val & 0x0800 ? "p" : "",
+//      val & 0x1000 ? "a" : "") ;
     state = val & 0x000f ;
     if (val & 0x0100)
     {
@@ -162,7 +162,7 @@ static inline void smtproutes_compile (int fdr, int fdw)
       {
         uint16_t port ;
         uint16_unpack_big(sa.s + relaypos, &port) ;
-        LOLDEBUG("adding entry: %.*s -> %.*s port %hu", (int)relaypos, sa.s, (int)(relayend - relaypos - 2), sa.s + relaypos + 2, port) ;
+//        LOLDEBUG("adding entry: %.*s -> %.*s port %hu", (int)relaypos, sa.s, (int)(relayend - relaypos - 2), sa.s + relaypos + 2, port) ;
         if (!cdbmake_add(&cm, sa.s, relaypos, sa.s + relaypos, relayend - relaypos))
           qmailr_tempusys("cdbmake_add") ;
       }
@@ -240,7 +240,6 @@ int smtproutes_match (smtproutes const *routes, char const *s, stralloc *sa, siz
   if (!r) return 0 ;
   if (data.len < 3) return 0 ;
   if (data.s[data.len - 1]) qmailr_temp("Invalid ", "run/qmail-remote/smtproutes.cdb") ;
-  LOLDEBUG("found: key %s has relay %s", s, data.s + 2) ;
   *pos = sa->len ;
   uint16_unpack_big(data.s, port) ;
   if (!stralloc_catb(sa, data.s + 2, data.len - 2)) dienomem() ;
