@@ -58,6 +58,7 @@ static unsigned int use_host_as_mx (skadns_t *a, char const *host, genalloc *mxi
     qmailr_tempusys("DNS-encode host domain") ;
   info.pos = storage->len ;
   if (!stralloc_catb(storage, host, hostlen+1)) dienomem() ;
+  if (hostlen > 1 && storage->s[storage->len - 2] == '.') storage->s[--storage->len - 1] = 0 ;
   if (!skadns_send_g(a, &info.id4, &q, S6DNS_T_A, deadline, deadline))
     qmailr_tempusys("send ", "A", " DNS query") ;
   LOLDEBUG("sending A for %s, id %hu", host, info.id4) ;
@@ -194,7 +195,9 @@ unsigned int dns_stuff (char const *host, char const *const *eaddr, unsigned int
             p->pos = storage->len ;
             len = s6dns_domain_tostring(storage->s + p->pos, 256, &mxs[i].exchange) ;
             if (!len) qmailr_perm("invalid MX name") ;
-            storage->len += len ; storage->s[storage->len++] = 0 ;
+            storage->len += len ;
+            if (storage->s[storage->len - 1] == '.') storage->len-- ;
+            storage->s[storage->len++] = 0 ;
             p->ip4 = p->ip6 = stralloc_zero ;
             s6dns_domain_encode(&mxs[i].exchange) ;
             if (!skadns_send_g(&a, &p->id4, &mxs[i].exchange, S6DNS_T_A, &deadline, &deadline))
