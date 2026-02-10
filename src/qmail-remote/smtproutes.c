@@ -235,7 +235,7 @@ int smtproutes_init (smtproutes *routes)
 int smtproutes_match (smtproutes const *routes, char const *s, stralloc *sa, size_t *pos, uint16_t *port)
 {
   cdb_data data ;
-  int r = cdb_find(&routes->map, &data, s, strlen(s)) ;
+  int r = cdb_find(&routes->map, &data, s, strlen(s)+1) ;
   if (r == -1) qmailr_temp("Invalid run/qmail-remote/smtproutes.cdb") ;
   if (!r) return 0 ;
   if (data.len < 3) return 0 ;
