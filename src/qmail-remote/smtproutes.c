@@ -156,7 +156,7 @@ static inline void smtproutes_compile (int fdr, int fdw)
       if (!uint160_scan(sa.s + relayend, &port)) qmailr_temp("Invalid port in ", "control/smtproutes") ;
       uint16_pack_big(sa.s + relaypos, port) ;
     }
-    if (val & 0x0100)
+    if (val & 0x1000)
     {
       if (relaypos || relayend > 2 + relaypos)
       {
