@@ -3,7 +3,8 @@ Changelog for smtpd-starttls-proxy.
 In 0.1.0.0
 ----------
 
- - New binary: qmail-remote.
+ - New binary: qmail-remote. Comes with a qmail-remote-io helper.
+This is a full implementation of qmail's SMTP client.
 
 
 In 0.0.2.1
