@@ -35,6 +35,8 @@ extern void qmailr_dievsys (char const *const *, unsigned int) gccattr_noreturn 
 
 /* qmailr_utils */
 
+#define qdeadline(d, t) do { if (t) tain_addsec_g(d, t) ; else tain_add_g(d, &tain_infinite_relative) ; } while (0)
+
 extern int qmailr_memcmp4 (void const *, void const *) ;
 extern int qmailr_memcmp16 (void const *, void const *) ;
 extern int qmailr_box_encode (char const *, size_t, stralloc *) ;

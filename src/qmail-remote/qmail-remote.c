@@ -69,11 +69,11 @@ static int smtp_start (buffer *in, buffer *out, char const *helohost, unsigned i
   buffer_putsnoflush(out, helohost) ;
   buffer_putnoflush(out, "\r\n", 2) ;
 
-  tain_addsec_g(&deadline, timeout) ;
+  qdeadline(&deadline, timeout) ;
   if (!buffer_timed_flush_g(out, &deadline))
     qmailr_tempusys("send ", "EHLO", " to ", fmtip) ;
 
-  tain_addsec_g(&deadline, timeout) ;
+  qdeadline(&deadline, timeout) ;
   for (;;)
   {
     unsigned int code = 250 ;
@@ -107,7 +107,7 @@ static void attempt_smtp (int fd, char const *ip, int is6, unsigned int timeoutc
       tain deadline ;
       char line[1024] ;
       buffer_putsnoflush(&out, "STARTTLS\r\n") ;
-      tain_addsec_g(&deadline, timeoutremote) ;
+      qdeadline(&deadline, timeoutremote) ;
       if (!buffer_timed_flush_g(&out, &deadline)) qmailr_tempusys("send ", "STARTTLS", " to ", fmtip) ;
       r = qmailr_smtp_read_answer(&in, line, 1024, timeoutremote) ;
       if (r == -1) qmailr_tempusys("read from ", fmtip) ;
@@ -211,7 +211,7 @@ int main (int argc, char const *const *argv)
           if (qmailr_tcpto_match(ip, 1)) continue ;
           fd = socket_tcp6() ;
           if (fd == -1) qmailr_tempusys("create socket") ;
-          tain_addsec_g(&deadline, timeoutconnect) ;
+          qdeadline(&deadline, timeoutconnect) ;
           if (!socket_deadlineconnstamp6_g(fd, ip, port, &deadline))
           {
             if (!qmailr_tcpto_update(ip, 1, errno == ETIMEDOUT))
@@ -233,7 +233,7 @@ int main (int argc, char const *const *argv)
           if (qmailr_tcpto_match(ip, 0)) continue ;
           fd = socket_tcp4() ;
           if (fd == -1) qmailr_tempusys("create socket") ;
-          tain_addsec_g(&deadline, timeoutconnect) ;
+          qdeadline(&deadline, timeoutconnect) ;
           if (!socket_deadlineconnstamp4_g(fd, ip, port, &deadline))
           {
             if (!qmailr_tcpto_update(ip, 0, errno == ETIMEDOUT))

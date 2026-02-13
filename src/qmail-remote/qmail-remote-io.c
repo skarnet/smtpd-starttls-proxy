@@ -133,7 +133,7 @@ static inline void smtp_body (buffer *in, buffer *out, char const *fmtip, char c
   put(out, "MAIL FROM:<") ;
   put(out, sender) ;
   put(out, ">\r\n") ;
-  tain_addsec_g(&deadline, timeout) ;
+  qdeadline(&deadline, timeout) ;
   if (!buffer_timed_flush_g(out, &deadline))
     qmailr_tempsys("qmail-remote-io: ", "unable to ", "send command to ", fmtip) ;
   code = read_answer(in, timeout, buf, 4096, fmtip) ;
@@ -153,7 +153,7 @@ static inline void smtp_body (buffer *in, buffer *out, char const *fmtip, char c
     put(out, "RCPT TO:<") ;
     put(out, recip[i]) ;
     put(out, ">\r\n") ;
-    tain_addsec_g(&deadline, timeout) ;
+    qdeadline(&deadline, timeout) ;
     if (!buffer_timed_flush_g(out, &deadline))
       qmailr_tempsys("qmail-remote-io: ", "unable to ", "send command to ", fmtip) ;
     code = read_answer(in, timeout, buf, 4096, fmtip) ;
@@ -180,7 +180,7 @@ static inline void smtp_body (buffer *in, buffer *out, char const *fmtip, char c
   }
 
   put(out, "DATA\r\n") ;
-  tain_addsec_g(&deadline, timeout) ;
+  qdeadline(&deadline, timeout) ;
   if (!buffer_timed_flush_g(out, &deadline))
     qmailr_tempsys("qmail-remote-io: ", "unable to ", "send command to ", fmtip) ;
   code = read_answer(in, timeout, buf, 4096, fmtip) ;

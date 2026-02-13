@@ -123,7 +123,7 @@ unsigned int dns_stuff (char const *host, char const *const *eaddr, unsigned int
   tain deadline ;
   cnameinfo cnames[n] ;
 
-  tain_addsec_g(&deadline, timeoutdns) ;
+  qdeadline(&deadline, timeoutdns) ;
   if (!skadns_startf_g(&a, &deadline))
     qmailr_tempusys("start asynchronous DNS helper") ;
 

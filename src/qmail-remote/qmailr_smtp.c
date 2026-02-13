@@ -31,7 +31,7 @@ int qmailr_smtp_read_answer (buffer *in, char *line, size_t max, unsigned int ti
 {
   unsigned int code = 1000 ;
   tain deadline ;
-  tain_addsec_g(&deadline, timeout) ;
+  qdeadline(&deadline, timeout) ;
   for (;;)
   {
     unsigned int c ;
@@ -48,6 +48,6 @@ void qmailr_smtp_quit (buffer *out, unsigned int timeout)
 {
   tain deadline ;
   buffer_puts(out, "QUIT\r\n") ;
-  tain_addsec_g(&deadline, timeout) ;
+  qdeadline(&deadline, timeout) ;
   buffer_timed_flush_g(out, &deadline) ;
 }
