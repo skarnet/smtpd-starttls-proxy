@@ -59,6 +59,7 @@ extern int qmailr_control_readiplist (char const *, stralloc *, stralloc *) ;
 
 extern int qmailr_smtp_read_line (buffer *, char *, size_t, unsigned int *, tain const *) ;
 extern int qmailr_smtp_read_answer (buffer *, char *, size_t, unsigned int) ;
+extern int qmailr_smtp_ehlo (buffer *, buffer *, char const *, unsigned int) ;
 extern int qmailr_smtp_start (buffer *, buffer *, char const *, unsigned int) ;
 extern void qmailr_smtp_quit (buffer *b, unsigned int) ;
 

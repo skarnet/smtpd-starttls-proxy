@@ -52,19 +52,11 @@ void qmailr_smtp_quit (buffer *out, unsigned int timeout)
   buffer_timed_flush_g(out, &deadline) ;
 }
 
-int qmailr_smtp_start (buffer *in, buffer *out, char const *helohost, unsigned int timeout)
+int qmailr_smtp_ehlo (buffer *in, buffer *out, char const *helohost, unsigned int timeout)
 {
   int hastls = 0 ;
   tain deadline ;
   char line[1024] ;
-  int r = qmailr_smtp_read_answer(in, line, 1024, timeout) ;
-  if (r == -1) return -1 ;
-  if (!r) return (errno = EPIPE, -1) ;
-  if (r != 220)
-  {
-    qmailr_smtp_quit(out, timeout) ;
-    return (errno = EPROTO, -1) ;
-  }
 
   buffer_putnoflush(out, "EHLO ", 5) ;
   buffer_putsnoflush(out, helohost) ;
@@ -85,4 +77,18 @@ int qmailr_smtp_start (buffer *in, buffer *out, char const *helohost, unsigned i
     if (r == 1) break ;
   }
   return hastls ;
+}
+
+int qmailr_smtp_start (buffer *in, buffer *out, char const *helohost, unsigned int timeout)
+{
+  char line[1024] ;
+  int r = qmailr_smtp_read_answer(in, line, 1024, timeout) ;
+  if (r == -1) return -1 ;
+  if (!r) return (errno = EPIPE, -1) ;
+  if (r != 220)
+  {
+    qmailr_smtp_quit(out, timeout) ;
+    return (errno = EPROTO, -1) ;
+  }
+  return qmailr_smtp_ehlo(in, out, helohost, timeout) ;
 }

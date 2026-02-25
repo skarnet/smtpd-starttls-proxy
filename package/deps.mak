@@ -13,7 +13,7 @@ src/qmail-remote/qmailr_tcpto.o src/qmail-remote/qmailr_tcpto.lo: src/qmail-remo
 src/qmail-remote/qmailr_tls.o src/qmail-remote/qmailr_tls.lo: src/qmail-remote/qmailr_tls.c src/qmail-remote/qmailr.h src/include/smtpd-starttls-proxy/config.h
 src/qmail-remote/qmailr_utils.o src/qmail-remote/qmailr_utils.lo: src/qmail-remote/qmailr_utils.c src/qmail-remote/qmailr.h
 src/qmail-remote/smtproutes.o src/qmail-remote/smtproutes.lo: src/qmail-remote/smtproutes.c src/qmail-remote/qmail-remote.h src/qmail-remote/qmailr.h src/include/smtpd-starttls-proxy/config.h
-src/qmail-remote/tls.o src/qmail-remote/tls.lo: src/qmail-remote/tls.c src/qmail-remote/qmail-remote.h src/qmail-remote/qmailr.h
+src/qmail-remote/tls.o src/qmail-remote/tls.lo: src/qmail-remote/tls.c src/qmail-remote/qmail-remote.h src/qmail-remote/qmailr.h src/include/smtpd-starttls-proxy/config.h
 src/smtpd-starttls-proxy/smtpd-starttls-proxy-io.o src/smtpd-starttls-proxy/smtpd-starttls-proxy-io.lo: src/smtpd-starttls-proxy/smtpd-starttls-proxy-io.c
 
 ifeq ($(strip $(STATIC_LIBS_ARE_PIC)),)

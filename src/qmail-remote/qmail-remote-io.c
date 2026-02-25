@@ -245,7 +245,7 @@ int main (int argc, char const *const *argv)
   tain_now_set_stopwatch_g() ;
   if (wgola[GOLA_HELOHOST])
   {
-    if (qmailr_smtp_start(&in, &out, wgola[GOLA_HELOHOST], timeoutremote) == -1)
+    if (qmailr_smtp_ehlo(&in, &out, wgola[GOLA_HELOHOST], timeoutremote) == -1)
       qmailr_tempusys("initiate SMTP exchange with ", argv[0]) ;
   }
   smtp_body(&in, &out, argv[0], argv[1], argv + 2, argc - 2, timeoutremote) ;
