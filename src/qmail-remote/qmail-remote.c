@@ -147,6 +147,9 @@ int main (int argc, char const *const *argv)
     smtproutes_free(&routes) ;
   }
 
+
+ /* Get the MXes and iterate on them */
+
   {
     genalloc mxipind = GENALLOC_ZERO ;
     mxip const *mxs ;

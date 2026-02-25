@@ -38,11 +38,7 @@ void run_tls (int fdr, char const *fmtip, unsigned int timeoutconnect, unsigned 
   int fdw = dup(fdr) ;
   unsigned int m = 0 ;
   stralloc modif = STRALLOC_ZERO ;
-  cspawn_fileaction fa[2] =
-  {
-    [0] = { .type = CSPAWN_FA_CLOSE },
-    [1] = { .type = CSPAWN_FA_MOVE, .x = { .fd2 = { [0] = 2 } } }
-  } ;
+  cspawn_fileaction fa = { .type = CSPAWN_FA_MOVE, .x = { .fd2 = { [0] = 2 } } } ;
   int p[2] ;
   char fmtr[UINT_FMT] ;
   char fmtw[UINT_FMT] ;
@@ -52,8 +48,8 @@ void run_tls (int fdr, char const *fmtip, unsigned int timeoutconnect, unsigned 
 
   if (fdw == -1) qmailr_tempusys("duplicate file descriptor") ;
   if (pipe(p) == -1) qmailr_tempusys("pipe") ;
-  fa[0].x.fd = p[0] ;
-  fa[1].x.fd2[1] = p[1] ;
+  if (coe(p[0]) == -1) qmailr_tempusys("coe") ;
+  fa.x.fd2[1] = p[1] ;
 
   if (!env_addmodif(&modif, "TLS_UID", 0) || !env_addmodif(&modif, "TLS_GID", 0)
    || !env_addmodif(&modif, qtls->flagtadir ? "CADIR" : "CAFILE", storage + qtls->tapos)) dienomem() ;
@@ -93,14 +89,14 @@ void run_tls (int fdr, char const *fmtip, unsigned int timeoutconnect, unsigned 
   argv[m++] = fmtip ;
   for (unsigned int i = 0 ; i < n ; i++) argv[m++] = storage + eaddrpos[i] ;
   argv[m++] = 0 ;
-  pid = mspawn_m(argv, modif.s, modif.len, 0, fa, 2) ;
+  pid = mspawn_m(argv, modif.s, modif.len, 0, &fa, 1) ;
   if (!pid) qmailr_tempusys("spawn ", argv[0]) ;
 
   stralloc_free(&modif) ;
   fd_close(p[1]) ;
   if (wait_pid(pid, &wstat) == -1) qmailr_tempusys("waitpid") ;
   if (WIFSIGNALED(wstat))
-    qmailr_tempusys("either s6-tlsc or qmail-remote-io crashed") ;
+    qmailr_temp("Either s6-tlsc or qmail-remote-io crashed") ;
 
   {
     char buf[4096] ;
