@@ -51,42 +51,6 @@ static inline void exec_notls (int fd, char const *fmtip, unsigned int timeoutre
   qmailr_tempusys("exec ", argv[0]) ;
 }
 
-static int smtp_start (buffer *in, buffer *out, char const *helohost, unsigned int timeout, char const *fmtip)
-{
-  int hastls = 0 ;
-  tain deadline ;
-  char line[1024] ;
-  int r = qmailr_smtp_read_answer(in, line, 1024, timeout) ;
-  if (r == -1) qmailr_tempusys("read from ", fmtip) ;
-  if (!r) qmailr_temp("Connected to ", fmtip, " but connection died") ;
-  if (r != 220)
-  {
-    qmailr_smtp_quit(out, timeout) ;
-    qmailr_temp("Connected to ", fmtip, " but greeting failed") ;
-  }
-
-  buffer_putnoflush(out, "EHLO ", 5) ;
-  buffer_putsnoflush(out, helohost) ;
-  buffer_putnoflush(out, "\r\n", 2) ;
-
-  qdeadline(&deadline, timeout) ;
-  if (!buffer_timed_flush_g(out, &deadline))
-    qmailr_tempusys("send ", "EHLO", " to ", fmtip) ;
-
-  qdeadline(&deadline, timeout) ;
-  for (;;)
-  {
-    unsigned int code = 250 ;
-    int r = qmailr_smtp_read_line(in, line, 1024, &code, &deadline) ;
-    if (r == -1) qmailr_tempusys("read from ", fmtip) ;
-    if (!r) qmailr_temp("Connected to ", fmtip, " but connection died") ;
-    if (code != 250) qmailr_temp("Connected to ", fmtip, " but it speaks a weird protocol") ;
-    if (!strcasecmp(line + 4, "STARTTLS")) hastls = 1 ;
-    if (r == 1) break ;
-  }
-  return hastls ;
-}
-
 static void attempt_smtp (int fd, char const *ip, int is6, unsigned int timeoutconnect, unsigned int timeoutremote, qmailr_tls const *qtls, size_t helopos, size_t const *eaddrpos, unsigned int n, size_t mxnamepos, char const *storage)
 {
   int hastls ;
@@ -98,7 +62,8 @@ static void attempt_smtp (int fd, char const *ip, int is6, unsigned int timeoutc
   if (is6) fmtip[ip6_fmt(fmtip, ip)] = 0 ;
   else fmtip[ip4_fmt(fmtip, ip)] = 0 ;
 
-  hastls = smtp_start(&in, &out, storage + helopos, timeoutremote, fmtip) ;
+  hastls = qmailr_smtp_start(&in, &out, storage + helopos, timeoutremote) ;
+  if (hastls == -1) qmailr_tempusys("initiate SMTP exchange with ", fmtip) ;
   if (qtls->flagwanttls)
   {
     if (hastls)
@@ -116,7 +81,7 @@ static void attempt_smtp (int fd, char const *ip, int is6, unsigned int timeoutc
         qmailr_smtp_quit(&out, timeoutremote) ;
         qmailr_temp("Connected to ", fmtip, " but connection died") ;
       }
-      else if (r == 220) run_tls(fd, fmtip, timeoutconnect, timeoutremote, qtls, eaddrpos, n, mxnamepos, storage) ;
+      else if (r == 220) run_tls(fd, fmtip, timeoutconnect, timeoutremote, qtls, helopos, eaddrpos, n, mxnamepos, storage) ;
       if (qtls->strictness) return ;
     }
     else if (qtls->strictness >= 2) return ;

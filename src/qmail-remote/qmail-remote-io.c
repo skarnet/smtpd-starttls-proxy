@@ -16,6 +16,7 @@ enum gola_e
   GOLA_TIMEOUT,
   GOLA_FDR,
   GOLA_FDW,
+  GOLA_HELOHOST,
   GOLA_N
 } ;
 
@@ -140,12 +141,12 @@ static inline void smtp_body (buffer *in, buffer *out, char const *fmtip, char c
   if (code >= 500)
   {
     qmailr_smtp_quit(out, timeout) ;
-    qmailr_perm("qmail-remote-io: ", "connected to ", fmtip, " but sender was rejected") ;
+    qmailr_perm("qmail-remote-io: ", "connected to ", fmtip, " but sender was rejected", ".\nRemote host said: ", buf+4) ;
   }
   else if (code >= 400)
   {
     qmailr_smtp_quit(out, timeout) ;
-    qmailr_temp("qmail-remote-io: ", "connected to ", fmtip, " but sender was rejected") ;
+    qmailr_temp("qmail-remote-io: ", "connected to ", fmtip, " but sender was rejected", ".\nRemote host said: ", buf+4) ;
   }
 
   for (unsigned int i = 0 ; i < n ; i++)
@@ -160,12 +161,12 @@ static inline void smtp_body (buffer *in, buffer *out, char const *fmtip, char c
     if (code >= 500)
     {
       qmailr_smtp_quit(out, timeout) ;
-      qmailr_die('h', fmtip, " does not like recipient.\n", "Remote host said: ", buf+4) ;
+      qmailr_die('h', fmtip, " does not like recipient", ".\nRemote host said: ", buf+4) ;
     }
     else if (code >= 400)
     {
       qmailr_smtp_quit(out, timeout) ;
-      qmailr_die('s', fmtip, " does not like recipient.\n", "Remote host said: ", buf+4) ;
+      qmailr_die('s', fmtip, " does not like recipient", ".\nRemote host said: ", buf+4) ;
     }
     else
     {
@@ -219,6 +220,7 @@ int main (int argc, char const *const *argv)
     { .so = 't', .lo = "timeoutremote", .i = GOLA_TIMEOUT },
     { .so = '6', .lo = "fdr", .i = GOLA_FDR },
     { .so = '7', .lo = "fdw", .i = GOLA_FDW },
+    { .so = 0, .lo = "helohost", .i = GOLA_HELOHOST },
   } ;
   char const *wgola[GOLA_N] = { 0 } ;
   unsigned int fdr = 6, fdw = 7 ;
@@ -226,7 +228,7 @@ int main (int argc, char const *const *argv)
   buffer in, out ;
   char inbuf[1024] ;
   char outbuf[BUFFER_OUTSIZE] ;
-  unsigned int golc = qgol_main(argc, argv, 0, 0, rgola, 3, 0, wgola) ;
+  unsigned int golc = qgol_main(argc, argv, 0, 0, rgola, 4, 0, wgola) ;
   argc -= golc ; argv += golc ;
   if (argc < 3) qmailr_perm("qmail-remote-io: ", "too few arguments") ;
 
@@ -241,5 +243,10 @@ int main (int argc, char const *const *argv)
   buffer_init(&out, &buffer_write, fdw, outbuf, BUFFER_OUTSIZE) ;
 
   tain_now_set_stopwatch_g() ;
+  if (wgola[GOLA_HELOHOST])
+  {
+    if (qmailr_smtp_start(&in, &out, wgola[GOLA_HELOHOST], timeoutremote) == -1)
+      qmailr_tempusys("initiate SMTP exchange with ", argv[0]) ;
+  }
   smtp_body(&in, &out, argv[0], argv[1], argv + 2, argc - 2, timeoutremote) ;
 }
