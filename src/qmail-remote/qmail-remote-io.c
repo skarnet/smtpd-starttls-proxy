@@ -220,7 +220,7 @@ int main (int argc, char const *const *argv)
     { .so = 't', .lo = "timeoutremote", .i = GOLA_TIMEOUT },
     { .so = '6', .lo = "fdr", .i = GOLA_FDR },
     { .so = '7', .lo = "fdw", .i = GOLA_FDW },
-    { .so = 0, .lo = "helohost", .i = GOLA_HELOHOST },
+    { .so = 'h', .lo = "helohost", .i = GOLA_HELOHOST },
   } ;
   char const *wgola[GOLA_N] = { 0 } ;
   unsigned int fdr = 6, fdw = 7 ;

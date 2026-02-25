@@ -87,7 +87,7 @@ void run_tls (int fdr, char const *fmtip, unsigned int timeoutconnect, unsigned 
   argv[m++] = fmtr ;
   argv[m++] = "-7" ;
   argv[m++] = fmtw ;
-  argv[m++] = "--helohost" ;
+  argv[m++] = "-h" ;
   argv[m++] = storage + helopos ;
   argv[m++] = "--" ;
   argv[m++] = fmtip ;
