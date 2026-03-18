@@ -5,3 +5,5 @@ libqmailr.a.xyzzy
 -lskadns
 -ls6dns
 -lskarnet
+${SOCKET_LIB}
+${SYSCLOCK_LIB}

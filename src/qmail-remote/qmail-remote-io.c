@@ -113,7 +113,7 @@ static void blast (buffer *out, unsigned int timeout)
     uint8_t val ;
     ssize_t r = buffer_get(buffer_0, &c, 1) ;
     if (r == -1) qmailr_tempsys("qmail-remote-io: ", "unable to ", "read message") ;
-    val = r ? table[state][cclass(c)] : table[state][0] ;
+    val = table[state][r ? cclass(c) : 0] ;
     state = val & 3 ;
     if (val & 0x10) datachar(out, '.') ;
     if (val & 0x20) datachar(out, '\r') ;

@@ -21,9 +21,9 @@ libqmailr.a.xyzzy: src/qmail-remote/qmailr_control.o src/qmail-remote/qmailr_err
 else
 libqmailr.a.xyzzy:src/qmail-remote/qmailr_control.lo src/qmail-remote/qmailr_error.lo src/qmail-remote/qmailr_smtp.lo src/qmail-remote/qmailr_tcpto.lo src/qmail-remote/qmailr_tls.lo src/qmail-remote/qmailr_utils.lo
 endif
-qmail-remote: EXTRA_LIBS :=
+qmail-remote: EXTRA_LIBS := ${SOCKET_LIB} ${SYSCLOCK_LIB}
 qmail-remote: src/qmail-remote/qmail-remote.o src/qmail-remote/dns.o src/qmail-remote/smtproutes.o src/qmail-remote/tls.o libqmailr.a.xyzzy -lskadns -ls6dns -lskarnet
-qmail-remote-io: EXTRA_LIBS :=
+qmail-remote-io: EXTRA_LIBS := ${SYSCLOCK_LIB}
 qmail-remote-io: src/qmail-remote/qmail-remote-io.o libqmailr.a.xyzzy -lskarnet
 smtpd-starttls-proxy-io: EXTRA_LIBS := ${SOCKET_LIB} ${SYSCLOCK_LIB}
 smtpd-starttls-proxy-io: src/smtpd-starttls-proxy/smtpd-starttls-proxy-io.o -lskarnet

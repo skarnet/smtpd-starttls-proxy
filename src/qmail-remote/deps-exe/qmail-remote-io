@@ -1,2 +1,3 @@
 libqmailr.a.xyzzy
 -lskarnet
+${SYSCLOCK_LIB}
