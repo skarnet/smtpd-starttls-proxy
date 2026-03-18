@@ -1,2 +1,4 @@
-    --with-qmail-home=*) qmailhome=${arg#*=} ;;
+    --qmaildir=*) qmailhome=${arg#*=} ;;
     --with-qmailr-ids=*) qmailrids=${arg#*=} ;;
+    --enable-qmail-install|--enable-qmail-install=yes) qmailinstall=true ;;
+    --disable-qmail-install|--enable-qmail-install=no) qmailinstall=false ;;

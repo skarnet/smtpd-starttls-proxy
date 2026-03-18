@@ -5,7 +5,9 @@ qmail-remote-io
 
 LIBEXEC_TARGETS :=
 
-EXTRA_INSTALL += install-qmailr
+ifdef INSTALL_QMAIL
+
+install: install-qmailr
 
 QMAILR_UID := $(firstword $(subst :, ,$(QMAILR_IDS)))
 QMAILR_GID := $(lastword $(subst :, ,$(QMAILR_IDS)))
@@ -21,3 +23,5 @@ install-qmailr:
 	touch -- $(DESTDIR)$(QMAIL_HOME)/run/qmail-remote/tcpto6
 	chown -- $(QMAILR_IDS) $(DESTDIR)$(QMAIL_HOME)/run/qmail-remote/tcpto6
 	chmod 0640 $(DESTDIR)$(QMAIL_HOME)/run/qmail-remote/tcpto6
+
+endif

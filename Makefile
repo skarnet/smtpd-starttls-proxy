@@ -24,7 +24,6 @@ PC_TARGETS :=
 LIB_DEFS :=
 BIN_SYMLINKS :=
 TEST_BINS :=
-EXTRA_INSTALL :=
 
 -include config.mak
 include package/targets.mak
@@ -125,7 +124,7 @@ ifneq ($(strip $(ALL_BINS)$(SHARED_LIBS)),)
 	exec $(STRIP) -R .note -R .comment $(ALL_BINS) $(SHARED_LIBS)
 endif
 
-install: install-dynlib install-libexec install-bin install-symlinks install-lib install-include install-pkgconfig $(EXTRA_INSTALL)
+install: install-dynlib install-libexec install-bin install-symlinks install-lib install-include install-pkgconfig
 install-dynlib: $(SHARED_LIBS:lib%.$(SHLIB_EXT).xyzzy=$(DESTDIR)$(dynlibdir)/lib%.$(SHLIB_EXT))
 install-libexec: $(LIBEXEC_TARGETS:%=$(DESTDIR)$(libexecdir)/%)
 install-bin: $(BIN_TARGETS:%=$(DESTDIR)$(bindir)/%)
@@ -190,6 +189,9 @@ lib%.a.xyzzy:
 
 lib%.so.xyzzy:
 	exec $(CC) -o $@ $(CFLAGS_ALL) $(CFLAGS_SHARED) $(LDFLAGS_ALL) $(LDFLAGS_SHARED) -Wl,-soname,$(patsubst lib%.so.xyzzy,lib%.so.$(version_M),$@) -Wl,-rpath=$(dynlibdir) $^ $(EXTRA_LIBS) $(LDLIBS)
+
+-lskarnet:
+	$(error Unable to link against skalibs. Check that you are using the correct --with-lib or --with-dynlib options; see ./configure --help)
 
 .PHONY: it all clean distclean tests check tgz strip install install-dynlib install-bin install-lib install-include install-pkgconfig
 

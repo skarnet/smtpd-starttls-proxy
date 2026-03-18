@@ -1,1 +1,2 @@
+  --qmaildir=DIR                qmail installation directory [/var/qmail]
 

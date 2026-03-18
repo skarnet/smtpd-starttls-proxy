@@ -1,2 +1,3 @@
 qmailhome=/var/qmail
 qmailrids=qmailr:qmail
+qmailinstall=false
