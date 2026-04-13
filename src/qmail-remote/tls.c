@@ -44,7 +44,7 @@ void run_tls (int fdr, char const *fmtip, unsigned int timeoutconnect, unsigned 
   char fmtw[UINT_FMT] ;
   char fmtt[UINT_FMT] ;
   char fmtk[UINT_FMT] ;
-  char const *argv[23 + n] ;
+  char const *argv[24 + n] ;
 
   if (fdw == -1) qmailr_tempusys("duplicate file descriptor") ;
   if (pipe(p) == -1) qmailr_tempusys("pipe") ;
@@ -74,6 +74,8 @@ void run_tls (int fdr, char const *fmtip, unsigned int timeoutconnect, unsigned 
   argv[m++] = fmtw ;
   argv[m++] = "-k" ;
   argv[m++] = storage + mxnamepos ;
+  if (qtls->strictness < 2)
+    argv[m++] = "--no-verify-cert" ;  /* don't need full webpki if SMTPS isn't enforced */
   argv[m++] = "--" ;
 
   argv[m++] = SMTPD_STARTTLS_PROXY_LIBEXECPREFIX "qmail-remote-io" ;

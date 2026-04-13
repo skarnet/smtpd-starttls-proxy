@@ -113,19 +113,38 @@ static unsigned int use_host_as_mx (skadns_t *a, char const *host, genalloc *mxi
 #define qmailr_dtempsys(...) do { skadns_end(&a) ; qmailr_tempsys(__VA_ARGS__) ; } while (0)
 #define qmailr_dtempusys(...) do { skadns_end(&a) ; qmailr_tempusys(__VA_ARGS__) ; } while (0)
 
-unsigned int dns_stuff (char const *host, char const *const *eaddr, unsigned int n, size_t *eaddrpos, genalloc *mxipind, stralloc *storage, unsigned int timeoutdns, char const *ipme4, unsigned int n4, char const *ipme6, unsigned int n6, uint32_t flags)
+unsigned int dns_stuff (char const *helohost, char *heloip4, char *heloip6, char const *host, char const *const *eaddr, unsigned int n, size_t *eaddrpos, genalloc *mxipind, stralloc *storage, unsigned int timeoutdns, char const *ipme4, unsigned int n4, char const *ipme6, unsigned int n6, uint32_t flags)
 {
   skadns_t a = SKADNS_ZERO ;
   genalloc mxipi = GENALLOC_ZERO ;  /* mxipinfo */
   unsigned int pending = 0 ;
   unsigned int mxn = 0 ;
+  stralloc helosa = STRALLOC_ZERO ;
   uint16_t mxid = UINT16_MAX ;
+  uint16_t heloid4 = UINT16_MAX ;
+#ifdef SKALIBS_IPV6_ENABLED
+  uint16_t heloid6 = UINT16_MAX ;
+#endif
   tain deadline ;
   cnameinfo cnames[n] ;
 
   qdeadline(&deadline, timeoutdns) ;
   if (!skadns_startf_g(&a, &deadline))
     qmailr_tempusys("start asynchronous DNS helper") ;
+
+  {
+    s6dns_domain_t q ;
+    if (!s6dns_domain_fromstring_noqualify_encode(&q, helohost, strlen(helohost)))
+      qmailr_dtempusys("DNS-encode helo string") ;
+    if (!skadns_send_g(&a, &heloid4, &q, S6DNS_T_A, &deadline, &deadline))
+      qmailr_dtempusys("send ", "A", " DNS query") ;
+    pending++ ;
+#ifdef SKALIBS_IPV6_ENABLED
+    if (!skadns_send_g(&a, &heloid6, &q, S6DNS_T_AAAA, &deadline, &deadline))
+      qmailr_dtempusys("send ", "AAAA", " DNS query") ;
+    pending++ ;
+#endif
+  }
 
   for (unsigned int i = 0 ; i < n ; i++)
   {
@@ -185,6 +204,42 @@ unsigned int dns_stuff (char const *host, char const *const *eaddr, unsigned int
       char const *packet = skadns_packet(&a, ids[j]) ;
       uint16_t packetlen = skadns_packetlen(&a, ids[j]) ;
       if (!packet) qmailr_dtempsys("DNS packet reading error") ;
+
+      if (ids[j] == heloid4)  /* ipv4 for the helohost */
+      {
+        s6dns_message_header_t h ;
+        r = s6dns_message_parse(&h, packet, packetlen, &s6dns_message_parse_answer_a, &helosa) ;
+        if (r == -1) qmailr_dtempsys("DNS packet parsing error") ;
+        if (!r)
+        {
+          if (errno == EBUSY || errno == EIO) qmailr_dtemp("Temporary DNS error while resolving ", "A", "for helohost") ;
+          else qmailr_dperm("DNS ", "A", " resolution error") ;
+        }
+        skadns_release(&a, heloid4) ;
+        pending-- ;
+        heloid4 = UINT16_MAX ;
+        if (helosa.len >= 4) memcpy(heloip4, helosa.s, 4) ;
+        helosa.len = 0 ;
+      }
+
+#ifdef SKALIBS_IPV6_ENABLED
+      if (ids[j] == heloid6)  /* ipv4 for the helohost */
+      {
+        s6dns_message_header_t h ;
+        r = s6dns_message_parse(&h, packet, packetlen, &s6dns_message_parse_answer_aaaa, &helosa) ;
+        if (r == -1) qmailr_dtempsys("DNS packet parsing error") ;
+        if (!r)
+        {
+          if (errno == EBUSY || errno == EIO) qmailr_dtemp("Temporary DNS error while resolving ", "AAAA", "for helohost") ;
+          else qmailr_dperm("DNS ", "AAAA", " resolution error") ;
+        }
+        skadns_release(&a, heloid6) ;
+        pending-- ;
+        heloid6 = UINT16_MAX ;
+        if (helosa.len >= 16) memcpy(heloip6, helosa.s, 16) ;
+        helosa.len = 0 ;
+      }
+#endif
 
       if (ids[j] == mxid)  /* return from MX query */
       {
@@ -323,6 +378,8 @@ unsigned int dns_stuff (char const *host, char const *const *eaddr, unsigned int
     }
   }
   skadns_end(&a) ;  /* we done, buddy */
+
+  stralloc_free(&helosa) ;
 
   for (unsigned int i = 0 ; i < n ; i++)
   {

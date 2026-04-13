@@ -152,18 +152,29 @@ int main (int argc, char const *const *argv)
 
   {
     genalloc mxipind = GENALLOC_ZERO ;
-    mxip const *mxs ;
-    size_t eaddrpos[argc] ;
+    mxip *mxs ;
+    int do4 = 1, do6 = 1 ;
+    char heloip4[4] = "\0\0\0" ;
+    char heloip6[16] = "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0" ;
     size_t ntot = 0 ;
     unsigned int pass = 1 + (qtls.flagwanttls && qtls.strictness == 1) ;
-    unsigned int mxn = dns_stuff(hostpos ? storage.s + hostpos : host, argv, argc, eaddrpos, &mxipind, &storage, timeoutdns, ipme4.s, ipme4.len >> 2, ipme6.s, ipme6.len >> 4, !hostpos) ;
+    size_t eaddrpos[argc] ;
+    unsigned int mxn = dns_stuff(storage.s + helopos, heloip4, heloip6, hostpos ? storage.s + hostpos : host, argv, argc, eaddrpos, &mxipind, &storage, timeoutdns, ipme4.s, ipme4.len >> 2, ipme6.s, ipme6.len >> 4, !hostpos) ;
     if (!mxn) qmailr_perm("No suitable MX found for remote host") ;
     stralloc_free(&ipme4) ;
     stralloc_free(&ipme6) ;
     mxs = genalloc_s(mxip, &mxipind) ;
 
-    for (unsigned int i = 0 ; i < mxn ; i++) ntot += mxs[i].n4 + mxs[i].n6 ;
-    if (!ntot) qmailr_perm("No suitable IP addresses for the MX") ;
+    if (!memcmp(heloip4, "\0\0\0", 4)) do4 = 0 ;
+    if (!memcmp(heloip6, "\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0", 16)) do6 = 0 ;
+    if (!do4 && !do6) qmailr_perm("No suitable IP addresses for ", "helohost") ;
+    for (unsigned int i = 0 ; i < mxn ; i++)
+    {
+      if (!do4) mxs[i].n4 = 0 ;
+      if (!do6) mxs[i].n6 = 0 ;
+      ntot += mxs[i].n4 + mxs[i].n6 ;
+    }
+    if (!ntot) qmailr_perm("No suitable IP addresses for ", "MX") ;
 
     while (pass--)
     {
@@ -178,7 +189,8 @@ int main (int argc, char const *const *argv)
           int fd ;
           if (qmailr_tcpto_match(ip, 1)) continue ;
           fd = socket_tcp6() ;
-          if (fd == -1) qmailr_tempusys("create socket") ;
+          if (fd == -1) qmailr_tempusys("create", " socket") ;
+          if (socket_bind6(fd, heloip6, 0) == -1) qmailr_tempusys("bind", " socket") ;
           qdeadline(&deadline, timeoutconnect) ;
           if (!socket_deadlineconnstamp6_g(fd, ip, port, &deadline))
           {
@@ -201,6 +213,7 @@ int main (int argc, char const *const *argv)
           if (qmailr_tcpto_match(ip, 0)) continue ;
           fd = socket_tcp4() ;
           if (fd == -1) qmailr_tempusys("create socket") ;
+          if (socket_bind4(fd, heloip4, 0) == -1) qmailr_tempusys("bind", " socket") ;
           qdeadline(&deadline, timeoutconnect) ;
           if (!socket_deadlineconnstamp4_g(fd, ip, port, &deadline))
           {

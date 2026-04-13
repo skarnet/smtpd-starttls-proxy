@@ -8,7 +8,7 @@ Build Instructions
   - GNU make version 3.81 or later
   - skalibs version 2.15.0.0 or later: https://skarnet.org/software/skalibs/
   - s6 version 2.15.0.0 or later: https://skarnet.org/software/s6/
-  - s6-networking version 2.7.2.2 or later: https://skarnet.org/software/s6-networking/
+  - s6-networking version 2.7.3.0 or later: https://skarnet.org/software/s6-networking/
 
  This software will run on any operating system that implements
 POSIX.1-2024, available at:
