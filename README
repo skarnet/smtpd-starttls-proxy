@@ -5,6 +5,8 @@ smtpd-starttls-proxy - a STARTTLS implementation for mail servers
 before the SMTP server on your command line. It interposes
 itself between the client commands and the server, and implements
 STARTTLS on behalf of the server.
+ The smtpd-starttls-proxy package also comes with a modern
+replacement for qmail's qmail-remote SMTP client.
 
  See https://skarnet.org/software/smtpd-starttls-proxy/ for details.
 

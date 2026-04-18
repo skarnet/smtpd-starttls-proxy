@@ -25,6 +25,14 @@
 inetd-like mail servers that do not already support it.
 </p>
 
+<p>
+ It comes with a chainloading binary implementing server-side
+STARTTLS, as well as a full-featured modern replacement for
+<a href="https://cr.yp.to/qmail.html">qmail</a>'s
+<a href="http://qmail.org/qmail-manual-html/man8/qmail-remote.html">qmail-remote</a>
+SMTP client.
+</p>
+
 <hr />
 
 <h2> Installation </h2>
@@ -44,7 +52,7 @@ library. </li>
 2.4.1.2 or later. It's a build-time requirement. It's also a run-time requirement
 if you link against the shared version of the s6-dns library. </li>
  <li> <a href="//skarnet.org/software/s6-networking/">s6-networking</a> version
-2.7.3.0 or later. It's a build-time and run-time requirement. </li>
+2.8.0.0 or later. It's a build-time and run-time requirement. </li>
 </ul>
 
 <h3> Licensing </h3>

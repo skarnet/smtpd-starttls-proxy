@@ -95,7 +95,9 @@ certificate validation. If the path ends with a slash, like <tt>/etc/ssl/certs/<
 then it is interpreted as a directory containing hashes to the certificates. If
 it does not, like <tt>/etc/ssl/cert.pem</tt>, then it is interpreted as a big
 PEM file containing all the trust anchors. If the file is nonexistent or empty,
-or only contains a newline, then STARTTLS is not attempted. </dd>
+or only contains a newline, then STARTTLS is not attempted. Note that the
+trust anchor list is only useful when <tt>tlsstrictness</tt> is 2 (see below),
+but you still need a non-empty list in order to attempt STARTTLS. </dd>
 
  <dt> <tt>clientcert</tt> </dt>
  <dd> If this file exists and is nonempty, it must contain the path to a client
@@ -118,7 +120,10 @@ STARTTLS command fails. <strong>1</strong> means that <tt>qmail-remote</tt> will
 attempt to find a server that supports STARTTLS in order to transmit its e-mail,
 but will fallback to cleartext if it cannot find any. <strong>2</strong> means that
 <tt>qmail-remote</tt> will flat out refuse to send e-mail to servers that do not
-support STARTTLS or fail to set it up. </dd>
+support STARTTLS or fail to set it up. It will also properly verify certificates,
+whereas a value lower than 2 doesn't care if the certificate chain does not begin
+with a trusted anchor (since it would eventually fall back on an insecure
+transport anyway). </dd>
 </dl>
 
 <h2 id="implementation"> Implementation notes </h2>
@@ -163,10 +168,10 @@ exchange is actually handled by a separate binary:
 shows a <tt>qmail-remote-io</tt> process under <tt>qmail-rspawn</tt> instead
 of the regular <tt>qmail-remote</tt>, that is normal, it means that
 <tt>qmail-remote</tt> has found a suitable server and is transmitting its
-data. If there is a
+data. If <tt>qmail-remote</tt> has a <a href="qmail-remote-io.html">qmail-remote-io</a>
+child that itself has a
 <a href="https://skarnet.org/software/s6-networking/s6-tlsc-io.html">s6-tlsc-io</a>
-process running as the child of <tt>qmail-remote-io</tt>, it means that the
-connection is happening under TLS. </li>
+child, it means that the transfer is happening under TLS. </li>
 </ul>
 
 </body>
