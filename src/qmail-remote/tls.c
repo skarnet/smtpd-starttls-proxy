@@ -29,6 +29,8 @@ hates a child that doesn't exit 0 or 111.
 and non-111 in important TLS failure cases that we want to report.
 So instead of execing, we spawn it and stick around to translate
 the exit code and the error message back to qmail-rspawn.
+  Also, this allows us to get back into the MX loop if we get a
+TLS error before/during the handshake.
 */
 
 void run_tls (int fdr, char const *fmtip, unsigned int timeoutconnect, unsigned int timeoutremote, qmailr_tls const *qtls, size_t helopos, size_t const *eaddrpos, unsigned int n, size_t mxnamepos, char const *storage)
@@ -104,6 +106,7 @@ void run_tls (int fdr, char const *fmtip, unsigned int timeoutconnect, unsigned 
     char buf[4096] ;
     size_t r = fd_read(p[0], buf, 4096) ;
     if (r == -1) qmailr_tempusys("read from pipe") ;
+    if (WTERMSIG(wstat) == 96 || WTERMSIG(wstat) == 97) return ;
     if (r)
     {
       if (r == 4096) r-- ;
