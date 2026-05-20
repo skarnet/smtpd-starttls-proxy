@@ -1,3 +1,4 @@
-qmailhome=/var/qmail
+qmaildir=/var/qmail
+qmailrundir='$qmaildir/run'
 qmailrids=qmailr:qmail
 qmailinstall=false

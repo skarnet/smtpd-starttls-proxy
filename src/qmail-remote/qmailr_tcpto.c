@@ -40,7 +40,7 @@
 
 int qmailr_tcpto_match (char const *ip, int is6)
 {
-  char const *file = is6 ? SMTPD_STARTTLS_PROXY_QMAIL_HOME "/run/qmail-remote/tcpto6" : SMTPD_STARTTLS_PROXY_QMAIL_HOME "/queue/lock/tcpto" ;
+  char const *file = is6 ? SMTPD_STARTTLS_PROXY_QMAIL_RUN "/qmail-remote/tcpto6" : SMTPD_STARTTLS_PROXY_QMAIL_HOME "/queue/lock/tcpto" ;
   uint32_t iplen = is6 ? 16 : 4 ;
   uint32_t width = iplen + 12 ;
   int r = 0 ;
@@ -83,7 +83,7 @@ int qmailr_tcpto_match (char const *ip, int is6)
 
 int qmailr_tcpto_update (char const *ip, int is6, int problem)
 {
-  char const *file = is6 ? SMTPD_STARTTLS_PROXY_QMAIL_HOME "/run/qmail-remote/tcpto6" : SMTPD_STARTTLS_PROXY_QMAIL_HOME "/queue/lock/tcpto" ;
+  char const *file = is6 ? SMTPD_STARTTLS_PROXY_QMAIL_RUN "/qmail-remote/tcpto6" : SMTPD_STARTTLS_PROXY_QMAIL_HOME "/queue/lock/tcpto" ;
   uint32_t iplen = is6 ? 16 : 4 ;
   uint32_t width = iplen + 12 ;
   uint32_t n ;

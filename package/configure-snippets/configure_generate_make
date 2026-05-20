@@ -1,4 +1,5 @@
-echo "QMAIL_HOME := $qmailhome"
+echo "QMAIL_HOME := $qmaildir"
+echo "QMAIL_RUN := $qmailrundir"
 echo "QMAILR_IDS := $qmailrids"
 if $qmailinstall ; then
   echo 'INSTALL_QMAIL := 1'

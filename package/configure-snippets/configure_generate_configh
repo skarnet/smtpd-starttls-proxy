@@ -1,3 +1,5 @@
 echo "#undef ${package_macro_name}_QMAIL_HOME"
-echo "#define ${package_macro_name}_QMAIL_HOME \"$qmailhome\""
+echo "#define ${package_macro_name}_QMAIL_HOME \"$qmaildir\""
+echo "#undef ${package_macro_name}_QMAIL_RUN"
+echo "#define ${package_macro_name}_QMAIL_RUN \"$qmailrundir\""
 

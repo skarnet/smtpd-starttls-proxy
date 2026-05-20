@@ -176,19 +176,19 @@ static inline void smtproutes_compile (int fdr, int fdw)
 
 int smtproutes_init (smtproutes *routes)
 {
-  static char const *cdbfile = SMTPD_STARTTLS_PROXY_QMAIL_HOME "/run/qmail-remote/smtproutes.cdb" ;
-  static char const *lckfile = SMTPD_STARTTLS_PROXY_QMAIL_HOME "/run/qmail-remote/smtproutes.lock" ;
+  static char const *cdbfile = SMTPD_STARTTLS_PROXY_QMAIL_RUN "/qmail-remote/smtproutes.cdb" ;
+  static char const *lckfile = SMTPD_STARTTLS_PROXY_QMAIL_RUN "/qmail-remote/smtproutes.lock" ;
   static char const *txtfile = SMTPD_STARTTLS_PROXY_QMAIL_HOME "/control/smtproutes" ;
-  static size_t const cdblen = sizeof(SMTPD_STARTTLS_PROXY_QMAIL_HOME "/run/qmail-remote/smtproutes.cdb") - 1 ;
+  static size_t const cdblen = sizeof(SMTPD_STARTTLS_PROXY_QMAIL_RUN "/qmail-remote/smtproutes.cdb") - 1 ;
   int fdl = openc_create(lckfile) ;
-  if (fdl == -1) qmailr_tempusys("open ", "run/qmail-remote/smtproutes.lock") ;
-  if (fd_lock(fdl, 1, 0) == -1) qmailr_tempusys("lock ", "run/qmail-remote/smtproutes.lock") ;
+  if (fdl == -1) qmailr_tempusys("open ", SMTPD_STARTTLS_PROXY_QMAIL_RUN "/qmail-remote/smtproutes.lock") ;
+  if (fd_lock(fdl, 1, 0) == -1) qmailr_tempusys("lock ", SMTPD_STARTTLS_PROXY_QMAIL_RUN "/qmail-remote/smtproutes.lock") ;
 
   int fdc = openc_read(cdbfile) ;
   if (fdc >= 0)
   {
     struct stat stc, str ;
-    if (fstat(fdc, &stc) == -1) qmailr_tempusys("fstat ", "run/qmail-remote/smtproutes.cdb") ;
+    if (fstat(fdc, &stc) == -1) qmailr_tempusys("fstat ", SMTPD_STARTTLS_PROXY_QMAIL_RUN "/qmail-remote/smtproutes.cdb") ;
     if (stat(txtfile, &str) == -1)
     {
       if (errno != ENOENT) qmailr_tempusys("fstat ", "control/smtproutes") ;
@@ -221,7 +221,7 @@ int smtproutes_init (smtproutes *routes)
   }
 
  useit:
-  if (!cdb_init_fromfd(&routes->map, fdc)) qmailr_tempusys("mmap ", "run/qmail-remote/smtproutes.cdb") ;
+  if (!cdb_init_fromfd(&routes->map, fdc)) qmailr_tempusys("mmap ", SMTPD_STARTTLS_PROXY_QMAIL_RUN "/qmail-remote/smtproutes.cdb") ;
   fd_close(fdc) ;
   fd_close(fdl) ;
   return 1 ;
@@ -236,10 +236,10 @@ int smtproutes_match (smtproutes const *routes, char const *s, stralloc *sa, siz
 {
   cdb_data data ;
   int r = cdb_find(&routes->map, &data, s, strlen(s)+1) ;
-  if (r == -1) qmailr_temp("Invalid run/qmail-remote/smtproutes.cdb") ;
+  if (r == -1) qmailr_temp("Invalid " SMTPD_STARTTLS_PROXY_QMAIL_RUN "/qmail-remote/smtproutes.cdb") ;
   if (!r) return 0 ;
   if (data.len < 3) return 0 ;
-  if (data.s[data.len - 1]) qmailr_temp("Invalid ", "run/qmail-remote/smtproutes.cdb") ;
+  if (data.s[data.len - 1]) qmailr_temp("Invalid " SMTPD_STARTTLS_PROXY_QMAIL_RUN "/qmail-remote/smtproutes.cdb") ;
   *pos = sa->len ;
   uint16_unpack_big(data.s, port) ;
   if (!stralloc_catb(sa, data.s + 2, data.len - 2)) dienomem() ;

@@ -1,2 +1,3 @@
-  --qmaildir=DIR                qmail installation directory [/var/qmail]
+  --qmaildir=QMAILDIR           qmail installation directory [/var/qmail]
+  --qmailrundir=QMAILRUNDIR     directory for run-time files [QMAILDIR/run]
 

@@ -1,5 +1,12 @@
 Changelog for smtpd-starttls-proxy.
 
+In 0.1.1.0
+----------
+
+ - Bugfixes.
+ - Support for --qmailrundir
+
+
 In 0.1.0.0
 ----------
 
